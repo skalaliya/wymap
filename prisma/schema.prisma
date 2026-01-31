@@ -1,0 +1,36 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum EventType {
+  CHECK_IN
+  CHECK_OUT
+  RETURNING
+}
+
+model Employee {
+  id     String  @id @default(cuid())
+  name   String
+  token  String  @unique
+  active Boolean @default(true)
+  events Event[]
+}
+
+model Event {
+  id         String    @id @default(cuid())
+  employeeId String
+  type       EventType
+  siteId     String
+  deviceId   String
+  createdAt  DateTime  @default(now())
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+}
