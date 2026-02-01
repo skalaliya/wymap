@@ -23,6 +23,8 @@
 # local database
 dev.db
 dev.db-journal
+test.db
+test.db-journal
 
 # misc
 .DS_Store
