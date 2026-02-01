@@ -1,26 +1,44 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --violet-1: #6d00ff;
+  --blue-1: #3715e0;
+  --purple-1: #7658e7;
+  --background: #04020d;
+  --foreground: #f4f1ff;
+  --surface: rgba(20, 14, 40, 0.82);
+  --surface-border: rgba(118, 88, 231, 0.25);
+  --text-muted: rgba(244, 241, 255, 0.7);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: "Inter", "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "SF Mono", "Fira Code", ui-monospace, monospace;
 }
 
 body {
-  background: var(--background);
+  background: radial-gradient(
+      circle at top,
+      rgba(109, 0, 255, 0.25),
+      transparent 55%
+    ),
+    radial-gradient(circle at 20% 20%, rgba(55, 21, 224, 0.22), transparent 50%),
+    linear-gradient(135deg, #03010a 0%, #0c0722 45%, #080318 100%);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+}
+
+.surface {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 16px;
+  padding: 24px;
+  backdrop-filter: blur(16px);
 }
