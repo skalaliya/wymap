@@ -7,6 +7,7 @@ export default async function CorrectionsPage() {
   await requireRole(["ADMIN", "MANAGER", "SUPERVISOR"]);
 
   const [events] = await Promise.all([
+  const [events, corrections] = await Promise.all([
     prisma.clockEvent.findMany({
       orderBy: { occurredAt: "desc" },
       take: 50,
@@ -15,6 +16,8 @@ export default async function CorrectionsPage() {
   ]);
   const session = await auth();
   const canReview = ["ADMIN", "SUPERVISOR"].includes(session?.user.role ?? "");
+    prisma.correction.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
+  ]);
 
   const eventOptions = events.map((event) => ({
     id: event.id,
@@ -33,6 +36,13 @@ export default async function CorrectionsPage() {
         </p>
       </header>
       <CorrectionsClient events={eventOptions} canReview={canReview} />
+      <CorrectionsClient
+        events={eventOptions}
+        initialCorrections={corrections.map((correction) => ({
+          ...correction,
+          createdAt: correction.createdAt.toISOString(),
+        }))}
+      />
     </div>
   );
 }

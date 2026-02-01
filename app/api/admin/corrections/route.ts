@@ -63,6 +63,17 @@ export const GET = async (request: Request) => {
     pageSize,
     total,
   });
+  const corrections = await prisma.correction.findMany({
+    orderBy: { createdAt: "desc" },
+    include: {
+      originalEvent: true,
+      correctionEvent: true,
+      createdBy: true,
+      reviewedBy: true,
+    },
+  });
+
+  return NextResponse.json({ corrections });
 };
 
 export const POST = async (request: Request) => {

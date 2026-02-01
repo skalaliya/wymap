@@ -1,3 +1,4 @@
+import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
 import EmployeesClient from "@/app/admin/(protected)/employees/employees-client";
 import { auth } from "@/lib/auth";
@@ -5,6 +6,10 @@ import { auth } from "@/lib/auth";
 export default async function EmployeesPage() {
   await requireRole(["ADMIN", "MANAGER", "SUPERVISOR"]);
 
+  const employees = await prisma.employee.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, status: true, badgeId: true },
+  });
   const session = await auth();
   const canEdit = ["ADMIN", "MANAGER"].includes(session?.user.role ?? "");
 
@@ -17,6 +22,7 @@ export default async function EmployeesPage() {
         </p>
       </header>
       <EmployeesClient canEdit={canEdit} />
+      <EmployeesClient initialEmployees={employees} canEdit={canEdit} />
     </div>
   );
 }

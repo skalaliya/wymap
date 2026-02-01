@@ -47,6 +47,11 @@ export const GET = async (request: Request) => {
   ]);
 
   return NextResponse.json({ sites, page, pageSize, total });
+  const sites = await prisma.site.findMany({
+    orderBy: { name: "asc" },
+  });
+
+  return NextResponse.json({ sites });
 };
 
 export const POST = async (request: Request) => {

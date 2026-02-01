@@ -62,6 +62,7 @@ export const GET = async (request: Request) => {
   ];
 
   const csv = toCsv(rows);
+  const csv = rows.map((row) => row.join(",")).join("\n");
   return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv",

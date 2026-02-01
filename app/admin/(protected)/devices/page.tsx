@@ -7,6 +7,19 @@ export default async function DevicesPage() {
   await requireRole(["ADMIN", "MANAGER", "SUPERVISOR"]);
 
   const sites = await prisma.site.findMany({ select: { id: true, name: true } });
+  const [devices, sites] = await Promise.all([
+    prisma.device.findMany({
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        name: true,
+        siteId: true,
+        active: true,
+        lastSeenAt: true,
+      },
+    }),
+    prisma.site.findMany({ select: { id: true, name: true } }),
+  ]);
   const session = await auth();
   const canEdit = ["ADMIN", "MANAGER"].includes(session?.user.role ?? "");
 
@@ -19,6 +32,14 @@ export default async function DevicesPage() {
         </p>
       </header>
       <DevicesClient sites={sites} canEdit={canEdit} />
+      <DevicesClient
+        initialDevices={devices.map((device) => ({
+          ...device,
+          lastSeenAt: device.lastSeenAt?.toISOString() ?? null,
+        }))}
+        sites={sites}
+        canEdit={canEdit}
+      />
     </div>
   );
 }
