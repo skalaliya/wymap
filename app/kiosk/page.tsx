@@ -3,6 +3,9 @@ import { env } from "@/lib/env";
 import KioskTerminal from "@/app/kiosk/components/kiosk-terminal";
 
 export default async function KioskPage() {
+  return (
+    <main className="mx-auto flex min-h-screen max-w-4xl flex-col justify-center px-6 py-12">
+      <KioskTerminal
   const employees = await prisma.employee.findMany({
     where: { status: "ACTIVE" },
     orderBy: { name: "asc" },

@@ -1,5 +1,12 @@
 "use client";
 
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { Card } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   countQueuedEvents,
@@ -8,6 +15,7 @@ import {
   removeQueuedEvent,
 } from "@/lib/offline-queue";
 
+type Props = {
 type Employee = {
   id: string;
   name: string;
@@ -36,6 +44,33 @@ const punchTypes: ClockEventPayload["type"][] = [
   "BREAK_END",
 ];
 
+const idleMs = 30_000;
+
+export default function KioskTerminal({ deviceId, siteId }: Props) {
+  const router = useRouter();
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const idleTimer = useRef<NodeJS.Timeout | null>(null);
+  const [online, setOnline] = useState(true);
+  const [queuedCount, setQueuedCount] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+  const [handshake, setHandshake] = useState<"pending" | "ok" | "error">(
+    "pending",
+  );
+  const [lastSync, setLastSync] = useState<string | null>(null);
+  const [badgeId, setBadgeId] = useState("");
+  const [selectedType, setSelectedType] =
+    useState<ClockEventPayload["type"]>("IN");
+  const [status, setStatus] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const resetIdle = useCallback(() => {
+    if (idleTimer.current) {
+      clearTimeout(idleTimer.current);
+    }
+    idleTimer.current = setTimeout(() => {
+      router.push("/kiosk/ready");
+    }, idleMs);
+  }, [router]);
 export default function KioskTerminal({
   employees,
   deviceId,
@@ -57,6 +92,23 @@ export default function KioskTerminal({
     setQueuedCount(count);
   }, []);
 
+  const beep = useCallback((type: "success" | "error") => {
+    try {
+      const ctx = new AudioContext();
+      const oscillator = ctx.createOscillator();
+      oscillator.type = "sine";
+      oscillator.frequency.value = type === "success" ? 880 : 220;
+      oscillator.connect(ctx.destination);
+      oscillator.start();
+      setTimeout(() => {
+        oscillator.stop();
+        ctx.close();
+      }, 120);
+    } catch {
+      // ignore audio errors
+    }
+  }, []);
+
   const syncQueue = useCallback(async () => {
     if (!navigator.onLine || syncing) {
       return;
@@ -75,6 +127,7 @@ export default function KioskTerminal({
           await removeQueuedEvent(record.idempotencyKey);
         }
       }
+      setLastSync(new Date().toLocaleTimeString());
     } finally {
       await updateQueuedCount();
       setSyncing(false);
@@ -91,6 +144,9 @@ export default function KioskTerminal({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ deviceId, siteId }),
         });
+        setHandshake(response.ok ? "ok" : "error");
+      } catch {
+        setHandshake("error");
         if (!response.ok) {
           setStatus("Device not registered. Contact admin.");
         }
@@ -101,12 +157,19 @@ export default function KioskTerminal({
 
     runHandshake();
     syncQueue();
+    resetIdle();
 
     const handleOnline = () => {
       setOnline(true);
       syncQueue();
     };
     const handleOffline = () => setOnline(false);
+    const handleInteraction = () => resetIdle();
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("keydown", handleInteraction);
+    window.addEventListener("mousemove", handleInteraction);
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
@@ -114,6 +177,37 @@ export default function KioskTerminal({
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("keydown", handleInteraction);
+      window.removeEventListener("mousemove", handleInteraction);
+    };
+  }, [deviceId, siteId, resetIdle, syncQueue, updateQueuedCount]);
+
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [badgeId, success]);
+
+  const resolveEmployee = async () => {
+    const response = await fetch("/api/kiosk/lookup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ badgeId }),
+    });
+    if (!response.ok) {
+      throw new Error("employee_not_found");
+    }
+    return response.json() as Promise<{ employeeId: string; employeeName: string }>;
+  };
+
+  const sendPunch = async () => {
+    if (!badgeId) {
+      setStatus("Scan or enter a badge ID to continue.");
+      beep("error");
+      return;
+    }
+
+    const { employeeId, employeeName } = await resolveEmployee();
     };
   }, [deviceId, siteId, syncQueue, updateQueuedCount]);
 
@@ -128,6 +222,7 @@ export default function KioskTerminal({
       employeeId,
       siteId,
       deviceId,
+      type: selectedType,
       type,
       source: online ? "KIOSK" : "OFFLINE_SYNC",
       occurredAt: new Date().toISOString(),
@@ -137,6 +232,8 @@ export default function KioskTerminal({
     if (!online) {
       await enqueueEvent(payload, idempotencyKey);
       await updateQueuedCount();
+      setStatus(`Saved offline for ${employeeName}.`);
+      setBadgeId("");
       setStatus("Saved offline. Will sync when online.");
       return;
     }
@@ -152,6 +249,16 @@ export default function KioskTerminal({
         await enqueueEvent(payload, idempotencyKey);
         await updateQueuedCount();
         setStatus("Network issue. Saved offline for retry.");
+        beep("error");
+        return;
+      }
+
+      setSuccess(true);
+      setStatus(`${employeeName} • ${selectedType.replace("_", " ")} saved`);
+      setLastSync(new Date().toLocaleTimeString());
+      beep("success");
+      setBadgeId("");
+      setTimeout(() => setSuccess(false), 2000);
         return;
       }
 
@@ -160,6 +267,108 @@ export default function KioskTerminal({
       await enqueueEvent(payload, idempotencyKey);
       await updateQueuedCount();
       setStatus("Network error. Saved offline for retry.");
+      beep("error");
+    }
+  };
+
+  const handshakeBadge = useMemo(() => {
+    if (handshake === "ok") return "success";
+    if (handshake === "error") return "danger";
+    return "warning";
+  }, [handshake]);
+
+  return (
+    <div className="space-y-6">
+      <Card className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">
+              Wymap Kiosk
+            </p>
+            <h1 className="text-3xl font-semibold">Punch Terminal</h1>
+            <p className="text-sm text-[var(--text-muted)]">
+              Device {deviceId} • Site {siteId}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={handshakeBadge}>
+              {handshake === "ok"
+                ? "Handshake OK"
+                : handshake === "error"
+                ? "Handshake failed"
+                : "Handshake pending"}
+            </Badge>
+            <Badge variant={online ? "success" : "warning"}>
+              {online ? "Online" : "Offline"}
+            </Badge>
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-[2fr,1fr]">
+          <div className="space-y-3">
+            <Input
+              label="Badge ID"
+              placeholder="Scan badge or type ID"
+              value={badgeId}
+              ref={inputRef}
+              onChange={(event) => setBadgeId(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  sendPunch();
+                }
+              }}
+            />
+            <div className="grid gap-2 sm:grid-cols-2">
+              {punchTypes.map((type) => (
+                <Button
+                  key={type}
+                  variant={selectedType === type ? "primary" : "secondary"}
+                  onClick={() => setSelectedType(type)}
+                >
+                  {type.replace("_", " ")}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-3">
+            <Card className="space-y-2">
+              <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                Sync status
+              </p>
+              <p className="text-sm">
+                Queue:{" "}
+                <span className="font-semibold">
+                  {queuedCount} {queuedCount === 1 ? "event" : "events"}
+                </span>
+              </p>
+              <p className="text-sm text-[var(--text-muted)]">
+                Last sync: {lastSync ?? "Not synced yet"}
+              </p>
+              <Button variant="secondary" onClick={syncQueue} loading={syncing}>
+                Sync now
+              </Button>
+            </Card>
+            {status ? (
+              <Card className="space-y-2">
+                <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                  Status
+                </p>
+                <p className="text-sm">{status}</p>
+                {success ? (
+                  <p className="text-2xl font-semibold text-[var(--purple-1)]">
+                    Success
+                  </p>
+                ) : null}
+              </Card>
+            ) : (
+              <Skeleton className="h-24" />
+            )}
+          </div>
+        </div>
+      </Card>
+      <Button variant="ghost" onClick={() => router.push("/kiosk/ready")}>
+        Return to ready screen
+      </Button>
     }
   };
 

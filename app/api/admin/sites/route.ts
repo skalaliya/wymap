@@ -23,6 +23,30 @@ export const GET = async (request: Request) => {
     return NextResponse.json({}, { status: authResult.status });
   }
 
+  const url = new URL(request.url);
+  const page = Number(url.searchParams.get("page") ?? "1");
+  const pageSize = Number(url.searchParams.get("pageSize") ?? "20");
+  const query = url.searchParams.get("q");
+
+  const where = query
+    ? {
+        name: {
+          contains: query,
+        },
+      }
+    : {};
+
+  const [sites, total] = await Promise.all([
+    prisma.site.findMany({
+      where,
+      orderBy: { name: "asc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.site.count({ where }),
+  ]);
+
+  return NextResponse.json({ sites, page, pageSize, total });
   const sites = await prisma.site.findMany({
     orderBy: { name: "asc" },
   });

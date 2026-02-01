@@ -7,6 +7,7 @@ Last updated: 2025-02-14
 - **Kiosk app** lives under `/kiosk` and is optimized for punch terminal workflows.
 - **Admin portal** lives under `/admin` with role-protected routes for workforce management.
 - **API routes** live under `/app/api`, use request IDs, rate limiting, validation, and audit logging.
+- **UI system** lives under `/components/ui` for shared admin + kiosk building blocks.
 
 ## Data model summary
 
@@ -41,6 +42,7 @@ Recommended:
 - Offline punches are queued in IndexedDB with `idempotencyKey`.
 - When online, the kiosk syncs queued events and removes them after success.
 - The server enforces idempotency on `ClockEvent.idempotencyKey`.
+- Ready screen lives at `/kiosk/ready` and the terminal resets to it after idle timeout.
 
 ## Security design notes
 
@@ -49,3 +51,8 @@ Recommended:
 - Admin mutations require CSRF tokens (`/api/csrf`) and are audit logged.
 - API routes include IP-based rate limiting and request IDs.
 - Clock events are append-only; corrections create new events referencing originals.
+
+## Admin shell conventions
+
+- Sidebar + topbar layout from `app/admin/(protected)/layout.tsx`.
+- Table pages use URL search params for filters, pagination, and shareable states.

@@ -34,6 +34,7 @@ Open http://localhost:3000.
 ### Key routes
 
 - Kiosk terminal: `/kiosk`
+- Kiosk ready screen: `/kiosk/ready`
 - Admin portal: `/admin`
 - Health check: `/api/health`
 
@@ -90,6 +91,19 @@ Optional (recommended):
 - `pnpm prisma:validate`
 - `pnpm build`
 - `pnpm test`
+
+## Admin UX highlights
+
+- Left sidebar navigation, topbar with user context, and breadcrumbs.
+- Table conventions: pagination + search + filters stored in URL parameters.
+- Toast notifications and confirm modals for critical actions.
+- Dashboard auto-refreshes every ~12s for live status.
+
+## Kiosk UX highlights
+
+- `/kiosk/ready` attract screen with live clock and tap-to-start.
+- Badge scanning flow with enter-to-submit, offline queueing, and manual sync.
+- Clear status blocks for handshake, online/offline, queue depth, and last sync.
 
 ## Running tests
 

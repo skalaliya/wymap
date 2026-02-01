@@ -21,6 +21,7 @@ export default async function SitesPage() {
           Manage locations, time zones, and site availability.
         </p>
       </header>
+      <SitesClient canEdit={canEdit} />
       <SitesClient initialSites={sites} canEdit={canEdit} />
     </div>
   );
