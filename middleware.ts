@@ -7,6 +7,7 @@ export const middleware = (request: NextRequest) => {
     request.headers.get(REQUEST_ID_HEADER) ?? crypto.randomUUID();
   const response = NextResponse.next();
   response.headers.set(REQUEST_ID_HEADER, requestId);
+  response.headers.set("x-pathname", request.nextUrl.pathname);
   return response;
 };
 

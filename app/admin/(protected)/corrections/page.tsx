@@ -1,16 +1,21 @@
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
 import CorrectionsClient from "@/app/admin/(protected)/corrections/corrections-client";
+import { auth } from "@/lib/auth";
 
 export default async function CorrectionsPage() {
   await requireRole(["ADMIN", "MANAGER", "SUPERVISOR"]);
 
+  const [events] = await Promise.all([
   const [events, corrections] = await Promise.all([
     prisma.clockEvent.findMany({
       orderBy: { occurredAt: "desc" },
       take: 50,
       include: { employee: true },
     }),
+  ]);
+  const session = await auth();
+  const canReview = ["ADMIN", "SUPERVISOR"].includes(session?.user.role ?? "");
     prisma.correction.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
   ]);
 
@@ -30,6 +35,7 @@ export default async function CorrectionsPage() {
           Submit and approve time corrections. All corrections are append-only.
         </p>
       </header>
+      <CorrectionsClient events={eventOptions} canReview={canReview} />
       <CorrectionsClient
         events={eventOptions}
         initialCorrections={corrections.map((correction) => ({

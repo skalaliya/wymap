@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 export default async function DevicesPage() {
   await requireRole(["ADMIN", "MANAGER", "SUPERVISOR"]);
 
+  const sites = await prisma.site.findMany({ select: { id: true, name: true } });
   const [devices, sites] = await Promise.all([
     prisma.device.findMany({
       orderBy: { createdAt: "desc" },
@@ -30,6 +31,7 @@ export default async function DevicesPage() {
           Register kiosks, assign them to sites, and monitor last seen status.
         </p>
       </header>
+      <DevicesClient sites={sites} canEdit={canEdit} />
       <DevicesClient
         initialDevices={devices.map((device) => ({
           ...device,

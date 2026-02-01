@@ -1,3 +1,5 @@
+import { requireRole } from "@/lib/rbac";
+import TimesheetsClient from "@/app/admin/(protected)/timesheets/timesheets-client";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
 
@@ -86,6 +88,10 @@ export default async function TimesheetsPage() {
       <header>
         <h1 className="text-2xl font-semibold">Timesheets</h1>
         <p className="text-sm text-[var(--text-muted)]">
+          Shift-based summaries with anomaly detection and resolution links.
+        </p>
+      </header>
+      <TimesheetsClient />
           Daily summary for {date.toDateString()}.
         </p>
       </header>

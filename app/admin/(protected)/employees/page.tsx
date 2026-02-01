@@ -21,6 +21,7 @@ export default async function EmployeesPage() {
           Manage employee records, deactivate access, and rotate kiosk tokens.
         </p>
       </header>
+      <EmployeesClient canEdit={canEdit} />
       <EmployeesClient initialEmployees={employees} canEdit={canEdit} />
     </div>
   );

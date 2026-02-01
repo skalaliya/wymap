@@ -3,6 +3,9 @@
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 
 export default function AdminLogin() {
   const [email, setEmail] = useState("");
@@ -29,6 +32,32 @@ export default function AdminLogin() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6">
+      <Card className="space-y-6">
+        <CardHeader>
+          <CardTitle>Admin sign in</CardTitle>
+          <CardDescription>Secure access to the Wymap workforce console.</CardDescription>
+        </CardHeader>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <Input
+            label="Email"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+          />
+          <Input
+            label="Password"
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            required
+          />
+          {error ? <p className="text-sm text-red-300">{error}</p> : null}
+          <Button className="w-full" type="submit">
+            Sign in
+          </Button>
+        </form>
+      </Card>
       <div className="surface space-y-6">
         <header className="space-y-2">
           <p className="text-sm uppercase tracking-[0.3em] text-[var(--text-muted)]">

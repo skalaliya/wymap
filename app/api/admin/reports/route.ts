@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireApiRole } from "@/lib/api-auth";
 import { enforceRateLimit } from "@/lib/api-rate-limit";
+import { toCsv } from "@/lib/csv";
 
 export const GET = async (request: Request) => {
   const rateResponse = enforceRateLimit(request, "admin:reports:get");
@@ -60,6 +61,7 @@ export const GET = async (request: Request) => {
     ]),
   ];
 
+  const csv = toCsv(rows);
   const csv = rows.map((row) => row.join(",")).join("\n");
   return new NextResponse(csv, {
     headers: {

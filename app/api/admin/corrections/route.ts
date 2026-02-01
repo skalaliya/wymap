@@ -25,6 +25,44 @@ export const GET = async (request: Request) => {
     return NextResponse.json({}, { status: authResult.status });
   }
 
+  const url = new URL(request.url);
+  const page = Number(url.searchParams.get("page") ?? "1");
+  const pageSize = Number(url.searchParams.get("pageSize") ?? "20");
+  const query = url.searchParams.get("q");
+
+  const where = query
+    ? {
+        reason: {
+          contains: query,
+        },
+      }
+    : {};
+
+  const [corrections, total] = await Promise.all([
+    prisma.correction.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: {
+        originalEvent: true,
+        correctionEvent: true,
+        createdBy: true,
+        reviewedBy: true,
+      },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.correction.count({ where }),
+  ]);
+
+  return NextResponse.json({
+    corrections: corrections.map((correction) => ({
+      ...correction,
+      createdAt: correction.createdAt.toISOString(),
+    })),
+    page,
+    pageSize,
+    total,
+  });
   const corrections = await prisma.correction.findMany({
     orderBy: { createdAt: "desc" },
     include: {
