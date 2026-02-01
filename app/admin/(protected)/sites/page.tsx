@@ -1,4 +1,3 @@
-import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/rbac";
 import SitesClient from "@/app/admin/(protected)/sites/sites-client";
 import { auth } from "@/lib/auth";
@@ -6,10 +5,6 @@ import { auth } from "@/lib/auth";
 export default async function SitesPage() {
   await requireRole(["ADMIN", "MANAGER", "SUPERVISOR"]);
 
-  const sites = await prisma.site.findMany({
-    orderBy: { name: "asc" },
-    select: { id: true, name: true, timeZone: true, active: true },
-  });
   const session = await auth();
   const canEdit = ["ADMIN", "MANAGER"].includes(session?.user.role ?? "");
 
@@ -22,7 +17,6 @@ export default async function SitesPage() {
         </p>
       </header>
       <SitesClient canEdit={canEdit} />
-      <SitesClient initialSites={sites} canEdit={canEdit} />
     </div>
   );
 }

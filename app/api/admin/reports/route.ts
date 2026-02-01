@@ -26,11 +26,11 @@ export const GET = async (request: Request) => {
     ...(siteId ? { siteId } : {}),
     ...(start || end
       ? {
-          occurredAt: {
-            ...(start ? { gte: new Date(start) } : {}),
-            ...(end ? { lte: new Date(end) } : {}),
-          },
-        }
+        occurredAt: {
+          ...(start ? { gte: new Date(start) } : {}),
+          ...(end ? { lte: new Date(end) } : {}),
+        },
+      }
       : {}),
   };
 
@@ -62,7 +62,6 @@ export const GET = async (request: Request) => {
   ];
 
   const csv = toCsv(rows);
-  const csv = rows.map((row) => row.join(",")).join("\n");
   return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv",

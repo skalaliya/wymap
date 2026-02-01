@@ -30,10 +30,10 @@ export const GET = async (request: Request) => {
 
   const where = query
     ? {
-        name: {
-          contains: query,
-        },
-      }
+      name: {
+        contains: query,
+      },
+    }
     : {};
 
   const [devices, total] = await Promise.all([
@@ -56,12 +56,6 @@ export const GET = async (request: Request) => {
     pageSize,
     total,
   });
-  const devices = await prisma.device.findMany({
-    orderBy: { createdAt: "desc" },
-    include: { site: true },
-  });
-
-  return NextResponse.json({ devices });
 };
 
 export const POST = async (request: Request) => {
