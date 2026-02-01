@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: wymap
+      POSTGRES_PASSWORD: wymap_password
+      POSTGRES_DB: wymap_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - wymap_pgdata:/var/lib/postgresql/data
+
+volumes:
+  wymap_pgdata:
