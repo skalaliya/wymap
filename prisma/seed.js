@@ -64,29 +64,19 @@ async function main() {
     bcrypt.hash("emp_riley_chen", 10),
   ]);
 
-  await prisma.employee.createMany({
-    data: [
-      {
-        name: "Avery Stone",
-        status: "ACTIVE",
-        badgeId: "BADGE-1001",
-        tokenHash: employeeTokens[0],
-      },
-      {
-        name: "Jordan Lee",
-        status: "ACTIVE",
-        badgeId: "BADGE-1002",
-        tokenHash: employeeTokens[1],
-      },
-      {
-        name: "Riley Chen",
-        status: "INACTIVE",
-        badgeId: "BADGE-1003",
-        tokenHash: employeeTokens[2],
-      },
-    ],
-    skipDuplicates: true,
-  });
+  const employees = [
+    { name: "Avery Stone", status: "ACTIVE", badgeId: "BADGE-1001", tokenHash: employeeTokens[0] },
+    { name: "Jordan Lee", status: "ACTIVE", badgeId: "BADGE-1002", tokenHash: employeeTokens[1] },
+    { name: "Riley Chen", status: "INACTIVE", badgeId: "BADGE-1003", tokenHash: employeeTokens[2] },
+  ];
+
+  for (const emp of employees) {
+    await prisma.employee.upsert({
+      where: { badgeId: emp.badgeId },
+      update: {},
+      create: emp,
+    });
+  }
 
   await prisma.auditLog.create({
     data: {
