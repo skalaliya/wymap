@@ -60,3 +60,9 @@ jobs:
         env:
           DATABASE_URL: "file:./test.db"
           AUTH_SECRET: "ci-build-secret"
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: E2E
+        run: pnpm test:e2e

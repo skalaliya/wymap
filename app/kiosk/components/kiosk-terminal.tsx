@@ -37,6 +37,8 @@ const punchTypes: ClockEventPayload["type"][] = [
 ];
 
 const idleMs = 30_000;
+const handshakeMinIntervalMs = 2_000;
+const handshakeMaxBackoffMs = 30_000;
 
 export default function KioskTerminal({ deviceId, siteId }: Props) {
   const router = useRouter();
@@ -54,6 +56,10 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
     useState<ClockEventPayload["type"]>("IN");
   const [status, setStatus] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const handshakeInFlight = useRef(false);
+  const handshakeTimer = useRef<NodeJS.Timeout | null>(null);
+  const handshakeAttempts = useRef(0);
+  const lastHandshakeAt = useRef<number | null>(null);
 
   const resetIdle = useCallback(() => {
     if (idleTimer.current) {
@@ -112,23 +118,73 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
   }, [syncing, updateQueuedCount]);
 
   useEffect(() => {
+    let cancelled = false;
+
     setOnline(navigator.onLine);
     updateQueuedCount();
 
+    const scheduleHandshakeRetry = (message: string) => {
+      if (cancelled) return;
+      const attempt = handshakeAttempts.current;
+      const nextDelay = Math.min(
+        handshakeMaxBackoffMs,
+        handshakeMinIntervalMs * 2 ** attempt,
+      );
+      handshakeAttempts.current = attempt + 1;
+      setStatus(message);
+      if (handshakeTimer.current) {
+        clearTimeout(handshakeTimer.current);
+      }
+      handshakeTimer.current = setTimeout(() => {
+        if (!cancelled) {
+          runHandshake();
+        }
+      }, nextDelay);
+    };
+
     const runHandshake = async () => {
+      if (handshakeInFlight.current) {
+        return;
+      }
+      const now = Date.now();
+      if (
+        lastHandshakeAt.current &&
+        now - lastHandshakeAt.current < handshakeMinIntervalMs
+      ) {
+        return;
+      }
+      lastHandshakeAt.current = now;
+      handshakeInFlight.current = true;
       try {
+        if (!navigator.onLine) {
+          setHandshake("error");
+          scheduleHandshakeRetry("Offline. Waiting for connection.");
+          return;
+        }
         const response = await fetch("/api/kiosk/handshake", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ deviceId, siteId }),
         });
-        setHandshake(response.ok ? "ok" : "error");
-        if (!response.ok) {
-          setStatus("Device not registered. Contact admin.");
+        if (response.ok) {
+          handshakeAttempts.current = 0;
+          setHandshake("ok");
+          setStatus(null);
+          return;
         }
+
+        setHandshake("error");
+        if (response.status === 403) {
+          setStatus("Device not registered. Contact admin.");
+          return;
+        }
+
+        scheduleHandshakeRetry("Handshake failed. Retrying...");
       } catch {
         setHandshake("error");
-        setStatus("Handshake failed. Check network.");
+        scheduleHandshakeRetry("Handshake failed. Retrying...");
+      } finally {
+        handshakeInFlight.current = false;
       }
     };
 
@@ -139,6 +195,7 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
     const handleOnline = () => {
       setOnline(true);
       syncQueue();
+      runHandshake();
     };
     const handleOffline = () => setOnline(false);
     const handleInteraction = () => resetIdle();
@@ -149,12 +206,16 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
     window.addEventListener("mousemove", handleInteraction);
 
     return () => {
+      cancelled = true;
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
       window.removeEventListener("keydown", handleInteraction);
       window.removeEventListener("mousemove", handleInteraction);
       if (idleTimer.current) {
         clearTimeout(idleTimer.current);
+      }
+      if (handshakeTimer.current) {
+        clearTimeout(handshakeTimer.current);
       }
     };
   }, [deviceId, siteId, resetIdle, syncQueue, updateQueuedCount]);
@@ -252,14 +313,14 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={handshakeBadge}>
+            <Badge data-testid="handshake-status" variant={handshakeBadge}>
               {handshake === "ok"
                 ? "Handshake OK"
                 : handshake === "error"
                   ? "Handshake failed"
                   : "Handshake pending"}
             </Badge>
-            <Badge variant={online ? "success" : "warning"}>
+            <Badge data-testid="online-status" variant={online ? "success" : "warning"}>
               {online ? "Online" : "Offline"}
             </Badge>
           </div>
@@ -296,16 +357,21 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
               <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
                 Sync status
               </p>
-              <p className="text-sm">
+              <p className="text-sm" data-testid="queue-count">
                 Queue:{" "}
                 <span className="font-semibold">
                   {queuedCount} {queuedCount === 1 ? "event" : "events"}
                 </span>
               </p>
-              <p className="text-sm text-[var(--text-muted)]">
+              <p className="text-sm text-[var(--text-muted)]" data-testid="last-sync">
                 Last sync: {lastSync ?? "Not synced yet"}
               </p>
-              <Button variant="secondary" onClick={syncQueue} loading={syncing}>
+              <Button
+                variant="secondary"
+                onClick={syncQueue}
+                loading={syncing}
+                data-testid="sync-now"
+              >
                 Sync now
               </Button>
             </Card>
@@ -314,7 +380,9 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
                 <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
                   Status
                 </p>
-                <p className="text-sm">{status}</p>
+                <p className="text-sm" data-testid="status-message">
+                  {status}
+                </p>
                 {success ? (
                   <p className="text-2xl font-semibold text-[var(--purple-1)]">
                     Success

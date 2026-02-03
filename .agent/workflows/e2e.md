@@ -5,6 +5,7 @@ description: End-to-end browser verification for kiosk and admin flows
 # /e2e — Wymap E2E Verification
 
 Goal: Run a repeatable pre-flight checklist that catches dumb breakages before PR.
+This workflow is now automated via Playwright and `pnpm test:e2e`.
 
 ---
 
@@ -19,7 +20,7 @@ pnpm prisma validate
 pnpm prisma generate
 ```
 
-3. Start dev server if not running:
+3. Start dev server if not running (Playwright runs this automatically):
 ```bash
 pnpm dev
 ```
@@ -47,6 +48,7 @@ Expected: JSON with `status: "ok"`
 - Expected:
   - ✅ Token/badge entry input visible
   - ✅ Keypad or input method works
+  - ✅ Handshake status is OK and not spamming (single request, retries only on failure)
 
 ### 1.3 Clock in flow (happy path)
 - Enter valid employee token (e.g., from seed data)
@@ -83,6 +85,12 @@ This is the big one. Test offline-first reliability:
 7. Expected:
    - ✅ Stable, no duplicates
    - ✅ Previously synced events still present
+
+### 1.6 Negative handshake validation
+- POST `/api/kiosk/handshake` with an invalid device ID
+- Expected:
+  - ✅ 403 `device_site_mismatch`
+  - ✅ No repeated request loop
 
 ---
 
@@ -169,6 +177,7 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm build
+pnpm test:e2e
 ```
 
 All must pass before PR.
@@ -206,6 +215,24 @@ Output a summary in this format:
 - [ ] Ready to merge
 - [ ] Needs fixes first (list blockers)
 ```
+
+---
+
+## Automated execution (Playwright)
+
+Run the automated E2E suite (includes DB reset, migrate, seed):
+
+```bash
+pnpm test:e2e
+```
+
+The suite uses SQLite `e2e.db` and runs `prisma migrate reset --force` for determinism.
+Playwright starts `pnpm dev` automatically with:
+
+- `KIOSK_DEVICE_ID=device_alpha`
+- `KIOSK_SITE_ID=site_hq`
+- `AUTH_ADMIN_EMAIL=admin@wymap.local`
+- `AUTH_ADMIN_PASSWORD=ChangeMe123!`
 
 ---
 
