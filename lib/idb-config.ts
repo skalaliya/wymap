@@ -1,3 +1,5 @@
+import type { IDBPDatabase } from "idb";
+
 export const DB_NAME = "wymap-kiosk";
 export const DB_VERSION = 2;
 
@@ -7,7 +9,7 @@ export const STORES = {
     QUEUE: "event-queue",
 } as const;
 
-export const onUpgrade = (db: any, oldVersion: number) => {
+export const onUpgrade = (db: IDBPDatabase<unknown>, oldVersion: number) => {
     if (oldVersion < 1) {
         if (!db.objectStoreNames.contains(STORES.QUEUE)) {
             db.createObjectStore(STORES.QUEUE, { keyPath: "idempotencyKey" });
