@@ -43,7 +43,8 @@ jobs:
       - name: Check for CSS corruption
         run: |
           if grep -nE '</script>|__next_f' app/globals.css; then
-            echo "globals.css appears corrupted (script payload detected)"
+            echo "::error file=app/globals.css::Corrupted script tag detected in globals.css!"
+            grep -nE '</script>|__next_f' app/globals.css
             exit 1
           fi
 
