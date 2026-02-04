@@ -2,7 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - "integrate/**"
   pull_request:
     branches: [main]
 
@@ -38,13 +40,15 @@ jobs:
             ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Check for CSS corruption
         run: |
-          if grep -nE '</script>|__next_f' app/globals.css; then
-            echo "::error file=app/globals.css::Corrupted script tag detected in globals.css!"
-            grep -nE '</script>|__next_f' app/globals.css
+          MATCHES="$(grep -nEi '</script>|__next_f' app/globals.css || true)"
+          if [ -n "$MATCHES" ]; then
+            FIRST_LINE="$(echo "$MATCHES" | head -n1 | cut -d: -f1)"
+            echo "::error file=app/globals.css,line=$FIRST_LINE::globals.css appears corrupted (script payload detected)"
+            echo "$MATCHES"
             exit 1
           fi
 
