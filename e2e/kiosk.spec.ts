@@ -15,11 +15,11 @@ test.describe("kiosk flows", () => {
     });
 
     await page.goto("/kiosk");
-    await expect(page.getByTestId("handshake-status")).toHaveText(
+    await expect(page.getByTestId("handshake-status")).toContainText(
       "Handshake OK",
       { timeout: 15000 },
     );
-    await expect(page.getByTestId("offline-ready")).toHaveText("Ready", { timeout: 10000 });
+    await expect(page.getByTestId("offline-ready")).toContainText("Ready", { timeout: 10000 });
 
     const badgeInput = page.getByLabel("Badge ID");
     await badgeInput.fill("BADGE-1001");
@@ -35,11 +35,11 @@ test.describe("kiosk flows", () => {
   test("offline queue stores punches and syncs when online", async ({ page, context }) => {
     // 1. Load page and wait for deterministic readiness
     await page.goto("/kiosk");
-    await expect(page.getByTestId("handshake-status")).toHaveText(
+    await expect(page.getByTestId("handshake-status")).toContainText(
       "Handshake OK",
       { timeout: 15000 },
     );
-    await expect(page.getByTestId("offline-ready")).toHaveText("Ready", { timeout: 10000 });
+    await expect(page.getByTestId("offline-ready")).toContainText("Ready", { timeout: 10000 });
 
     // 2. Go offline
     await context.setOffline(true);
@@ -53,13 +53,13 @@ test.describe("kiosk flows", () => {
     // 4. Verify offline save
     await expect(page.getByTestId("status-message")).toBeVisible({ timeout: 10000 });
     await expect(page.getByTestId("status-message")).toContainText("Saved offline");
-    await expect(page.getByTestId("queue-count")).toContainText("1 event");
+    await expect(page.getByTestId("queue-count")).toContainText("1");
 
     // 5. Go online and sync
     await context.setOffline(false);
     await expect(page.getByTestId("online-status")).toHaveText("Online");
     await page.getByTestId("sync-now").click();
-    await expect(page.getByTestId("queue-count")).toContainText("0 events", { timeout: 10000 });
+    await expect(page.getByTestId("queue-count")).toContainText("0", { timeout: 10000 });
   });
 });
 

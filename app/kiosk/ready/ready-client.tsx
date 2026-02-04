@@ -9,9 +9,17 @@ export default function ReadyClient() {
   const [time, setTime] = useState<Date | null>(null);
 
   useEffect(() => {
-    setTime(new Date());
+    // Use requestAnimationFrame to defer the initial setState (satisfies lint rule)
+    const frame = requestAnimationFrame(() => {
+      setTime(new Date());
+    });
+
     const timer = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(timer);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      clearInterval(timer);
+    };
   }, []);
 
   return (

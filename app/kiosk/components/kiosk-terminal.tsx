@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
-import { Skeleton } from "@/components/ui/Skeleton";
 import {
   countQueuedEvents,
   enqueueEvent,
@@ -385,59 +384,85 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
   }, [handshake]);
 
   return (
-    <div className="space-y-6">
-      <Card className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">
-              Wymap Kiosk
-            </p>
-            <h1 className="text-3xl font-semibold">Punch Terminal</h1>
-            <p className="text-sm text-[var(--text-muted)]">
-              Device {deviceId} • Site {siteId}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge data-testid="handshake-status" variant={handshakeBadge}>
-              {handshake === "ok" ? (
-                <>
-                  <CheckIcon size={12} className="mr-1" />
-                  Handshake OK
-                </>
-              ) : handshake === "error" ? (
-                <>
-                  <AlertIcon size={12} className="mr-1" />
-                  Handshake failed
-                </>
-              ) : (
-                "Handshake pending"
-              )}
-            </Badge>
-            <Badge data-testid="online-status" variant={online ? "success" : "warning"}>
-              {online ? "Online" : "Offline"}
-            </Badge>
-            {/* Offline Readiness Badge */}
-            <Badge
-              data-testid="offline-ready"
-              variant={offlineReady ? "success" : "warning"}
-            >
-              {offlineReady ? (
-                <>
-                  <CheckIcon size={12} className="mr-1" />
-                  Ready
-                </>
-              ) : (
-                "Not Ready"
-              )}
-            </Badge>
+    <div className="flex min-h-screen flex-col items-center justify-center p-6">
+      {/* Success Overlay */}
+      {success && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <div className="flex flex-col items-center gap-4 animate-scaleIn">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-[0_0_60px_rgba(52,211,153,0.5)]">
+              <CheckIcon size={48} className="text-white" />
+            </div>
+            <p className="text-2xl font-semibold text-white">Success</p>
+            <p className="text-lg text-white/80" data-testid="status-message">{status}</p>
           </div>
         </div>
+      )}
 
-        <div className="grid gap-4 md:grid-cols-[2fr,1fr]">
-          <div className="space-y-3">
+      <div className="w-full max-w-2xl space-y-8">
+        {/* Header */}
+        <div className="text-center">
+          <p className="mb-2 text-xs font-medium uppercase tracking-[0.4em] text-[var(--purple-1)]">
+            Wymap Kiosk
+          </p>
+          <h1 className="bg-gradient-to-r from-white via-[var(--purple-1)] to-[var(--violet-1)] bg-clip-text text-5xl font-bold text-transparent">
+            Punch Terminal
+          </h1>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">
+            {deviceId} • {siteId}
+          </p>
+        </div>
+
+        {/* Status Badges */}
+        <div className="flex flex-wrap justify-center gap-3">
+          <Badge
+            data-testid="handshake-status"
+            variant={handshakeBadge}
+            className="px-4 py-2 text-sm shadow-lg"
+          >
+            {handshake === "ok" ? (
+              <>
+                <CheckIcon size={14} className="mr-2" />
+                Handshake OK
+              </>
+            ) : handshake === "error" ? (
+              <>
+                <AlertIcon size={14} className="mr-2" />
+                Handshake Failed
+              </>
+            ) : (
+              "Connecting..."
+            )}
+          </Badge>
+          <Badge
+            data-testid="online-status"
+            variant={online ? "success" : "warning"}
+            className="px-4 py-2 text-sm shadow-lg"
+          >
+            {online ? "Online" : "Offline"}
+          </Badge>
+          <Badge
+            data-testid="offline-ready"
+            variant={offlineReady ? "success" : "warning"}
+            className="px-4 py-2 text-sm shadow-lg"
+          >
+            {offlineReady ? (
+              <>
+                <CheckIcon size={14} className="mr-2" />
+                Ready
+              </>
+            ) : (
+              "Not Ready"
+            )}
+          </Badge>
+        </div>
+
+        {/* Main Card */}
+        <Card className="space-y-6 p-8">
+          {/* Badge Input */}
+          <div>
             <Input
               label="Badge ID"
-              placeholder="Scan badge or type ID"
+              placeholder="Scan badge or enter ID"
               value={badgeId}
               ref={inputRef}
               onChange={(event) => setBadgeId(event.target.value)}
@@ -446,65 +471,113 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
                   sendPunch();
                 }
               }}
+              className="h-16 text-2xl font-mono tracking-wider text-center"
             />
-            <div className="grid gap-2 sm:grid-cols-2">
+          </div>
+
+          {/* Punch Type Buttons */}
+          <div>
+            <label className="mb-3 block text-sm font-medium uppercase tracking-wider text-[var(--text-muted)]">
+              Punch Type
+            </label>
+            <div className="grid grid-cols-2 gap-4">
               {punchTypes.map((type) => (
-                <Button
+                <button
                   key={type}
-                  variant={selectedType === type ? "primary" : "secondary"}
+                  type="button"
                   onClick={() => setSelectedType(type)}
+                  className={`
+                    group relative flex h-20 items-center justify-center rounded-2xl text-lg font-semibold uppercase tracking-wide
+                    transition-all duration-200 ease-out
+                    ${selectedType === type
+                      ? "bg-gradient-to-r from-[var(--violet-1)] to-[var(--purple-1)] text-white shadow-[0_0_30px_rgba(109,0,255,0.4)]"
+                      : "bg-[var(--surface)] text-[var(--text-muted)] hover:bg-[var(--surface-border)] hover:text-white border border-[var(--surface-border)]"
+                    }
+                    active:scale-[0.97]
+                  `}
                 >
                   {type.replace("_", " ")}
-                </Button>
+                  {selectedType === type && (
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--violet-1)] opacity-75"></span>
+                      <span className="relative inline-flex h-4 w-4 rounded-full bg-[var(--purple-1)]"></span>
+                    </span>
+                  )}
+                </button>
               ))}
             </div>
           </div>
-          <div className="space-y-3">
-            <Card className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
-                Sync status
+
+          {/* Submit Button */}
+          <Button
+            variant="primary"
+            onClick={sendPunch}
+            className="h-16 w-full text-xl font-bold uppercase tracking-wider shadow-[0_0_40px_rgba(109,0,255,0.3)] hover:shadow-[0_0_60px_rgba(109,0,255,0.5)] transition-shadow"
+          >
+            Submit Punch
+          </Button>
+
+          {/* Status Message */}
+          {status && !success && (
+            <div className="rounded-xl bg-[var(--surface)]/50 p-4 text-center border border-[var(--surface-border)]">
+              <p className="text-sm text-[var(--text-muted)]" data-testid="status-message">
+                {status}
               </p>
-              <p className="text-sm" data-testid="queue-count">
-                Queue:{" "}
-                <span className="font-semibold">
-                  {queuedCount} {queuedCount === 1 ? "event" : "events"}
-                </span>
-              </p>
-              <p className="text-sm text-[var(--text-muted)]" data-testid="last-sync">
+            </div>
+          )}
+        </Card>
+
+        {/* Sync Status Panel */}
+        <div className="flex items-center justify-between rounded-2xl bg-[var(--surface)]/30 px-6 py-4 backdrop-blur-sm border border-[var(--surface-border)]/50">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--surface)]">
+              <span className="text-lg font-bold text-[var(--purple-1)]" data-testid="queue-count">
+                {queuedCount}
+              </span>
+            </div>
+            <div>
+              <p className="text-sm font-medium">Queued Events</p>
+              <p className="text-xs text-[var(--text-muted)]" data-testid="last-sync">
                 Last sync: {lastSync ?? "Not synced yet"}
               </p>
-              <Button
-                variant="secondary"
-                onClick={syncQueue}
-                loading={syncing}
-                data-testid="sync-now"
-              >
-                Sync now
-              </Button>
-            </Card>
-            {status ? (
-              <Card className="space-y-2">
-                <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
-                  Status
-                </p>
-                <p className="text-sm" data-testid="status-message">
-                  {status}
-                </p>
-                {success ? (
-                  <p className="text-2xl font-semibold text-[var(--purple-1)]">
-                    Success
-                  </p>
-                ) : null}
-              </Card>
-            ) : (
-              <Skeleton className="h-24" />
-            )}
+            </div>
           </div>
+          <Button
+            variant="secondary"
+            onClick={syncQueue}
+            loading={syncing}
+            data-testid="sync-now"
+            className="px-6"
+          >
+            Sync Now
+          </Button>
         </div>
-      </Card>
-      <Button variant="ghost" onClick={() => router.push("/kiosk/ready")}>
-        Return to ready screen
-      </Button>
+
+        {/* Return Button */}
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={() => router.push("/kiosk/ready")}
+            className="text-sm uppercase tracking-wider text-[var(--text-muted)] hover:text-white transition-colors"
+          >
+            ← Return to Ready Screen
+          </button>
+        </div>
+      </div>
+
+      {/* CSS Animations */}
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes scaleIn {
+          from { transform: scale(0.8); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+        .animate-fadeIn { animation: fadeIn 0.2s ease-out; }
+        .animate-scaleIn { animation: scaleIn 0.3s ease-out; }
+      `}</style>
     </div>
   );
 }
