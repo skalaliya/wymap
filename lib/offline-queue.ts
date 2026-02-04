@@ -1,5 +1,5 @@
 import { openDB } from "idb";
-import { DB_NAME, DB_VERSION, STORES } from "./idb-config";
+import { DB_NAME, DB_VERSION, STORES, onUpgrade } from "./idb-config";
 
 type QueuedEvent = {
   idempotencyKey: string;
@@ -9,15 +9,7 @@ type QueuedEvent = {
 
 const getDb = () =>
   openDB(DB_NAME, DB_VERSION, {
-    upgrade(db, oldVersion) {
-      if (oldVersion < 1) {
-        if (!db.objectStoreNames.contains(STORES.QUEUE)) {
-          db.createObjectStore(STORES.QUEUE, { keyPath: "idempotencyKey" });
-        }
-      }
-      // employee-cache handles version 2 stores via STORES.EMPLOYEES and STORES.META
-      // This file focuses on STORES.QUEUE but respects the shared version
-    },
+    upgrade: onUpgrade,
   });
 
 export const enqueueEvent = async (payload: unknown, idempotencyKey: string) => {

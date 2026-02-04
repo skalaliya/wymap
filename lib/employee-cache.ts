@@ -1,5 +1,5 @@
 import { openDB } from "idb";
-import { DB_NAME, DB_VERSION, STORES } from "./idb-config";
+import { DB_NAME, DB_VERSION, STORES, onUpgrade } from "./idb-config";
 
 type CachedEmployee = {
     badgeId: string;
@@ -22,19 +22,7 @@ let isMemoryReady = false;
 
 const getDb = () =>
     openDB(DB_NAME, DB_VERSION, {
-        upgrade(db, oldVersion) {
-            if (oldVersion < 1) {
-                db.createObjectStore(STORES.QUEUE, { keyPath: "idempotencyKey" });
-            }
-            if (oldVersion < 2) {
-                if (!db.objectStoreNames.contains(STORES.EMPLOYEES)) {
-                    db.createObjectStore(STORES.EMPLOYEES, { keyPath: "badgeId" });
-                }
-                if (!db.objectStoreNames.contains(STORES.META)) {
-                    db.createObjectStore(STORES.META, { keyPath: "id" });
-                }
-            }
-        },
+        upgrade: onUpgrade,
     });
 
 export const setMemoryCache = (employees: CachedEmployee[]) => {
