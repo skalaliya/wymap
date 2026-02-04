@@ -40,6 +40,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Check for CSS corruption
+        run: |
+          if grep -nE '</script>|__next_f' app/globals.css; then
+            echo "globals.css appears corrupted (script payload detected)"
+            exit 1
+          fi
+
       - name: Generate Prisma client
         run: pnpm prisma generate
 
