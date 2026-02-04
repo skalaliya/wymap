@@ -43,7 +43,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Check for CSS corruption
+        shell: bash
         run: |
+          set -euo pipefail
           MATCHES="$(grep -nEi '</script>|__next_f' app/globals.css || true)"
           if [ -n "$MATCHES" ]; then
             FIRST_LINE="$(echo "$MATCHES" | head -n1 | cut -d: -f1)"
@@ -78,3 +80,8 @@ jobs:
 
       - name: E2E
         run: pnpm test:e2e
+        env:
+          DATABASE_URL: "file:./e2e.db"
+          AUTH_SECRET: "e2e-secret"
+          AUTH_ADMIN_EMAIL: "admin@wymap.local"
+          AUTH_ADMIN_PASSWORD: "ChangeMe123!"
