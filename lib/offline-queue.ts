@@ -1,7 +1,5 @@
 import { openDB } from "idb";
-
-const DB_NAME = "wymap-kiosk";
-const STORE_NAME = "event-queue";
+import { DB_NAME, DB_VERSION, STORES } from "./idb-config";
 
 type QueuedEvent = {
   idempotencyKey: string;
@@ -10,11 +8,15 @@ type QueuedEvent = {
 };
 
 const getDb = () =>
-  openDB(DB_NAME, 1, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: "idempotencyKey" });
+  openDB(DB_NAME, DB_VERSION, {
+    upgrade(db, oldVersion) {
+      if (oldVersion < 1) {
+        if (!db.objectStoreNames.contains(STORES.QUEUE)) {
+          db.createObjectStore(STORES.QUEUE, { keyPath: "idempotencyKey" });
+        }
       }
+      // employee-cache handles version 2 stores via STORES.EMPLOYEES and STORES.META
+      // This file focuses on STORES.QUEUE but respects the shared version
     },
   });
 
@@ -25,20 +27,20 @@ export const enqueueEvent = async (payload: unknown, idempotencyKey: string) => 
     payload,
     createdAt: new Date().toISOString(),
   };
-  await db.put(STORE_NAME, record);
+  await db.put(STORES.QUEUE, record);
 };
 
 export const listQueuedEvents = async () => {
   const db = await getDb();
-  return db.getAll(STORE_NAME);
+  return db.getAll(STORES.QUEUE);
 };
 
 export const removeQueuedEvent = async (idempotencyKey: string) => {
   const db = await getDb();
-  await db.delete(STORE_NAME, idempotencyKey);
+  await db.delete(STORES.QUEUE, idempotencyKey);
 };
 
 export const countQueuedEvents = async () => {
   const db = await getDb();
-  return db.count(STORE_NAME);
+  return db.count(STORES.QUEUE);
 };

@@ -17,6 +17,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { updateTableParams, getPage, getPageSize } from "@/lib/admin-table";
 import { withParams } from "@/lib/search-params";
 import { useDebounce } from "@/lib/use-debounce";
+import { cn } from "@/lib/cn";
 
 type Employee = {
   id: string;
@@ -160,6 +161,12 @@ export default function EmployeesClient({ canEdit }: { canEdit: boolean }) {
     [items],
   );
 
+  // Show full skeleton only on initial load (no data)
+  const showSkeleton = loading && !data;
+
+  // Dim the table if refreshing existing data
+  const isRefreshing = loading && !!data;
+
   return (
     <div className="space-y-6">
       <Card className="space-y-4">
@@ -189,7 +196,7 @@ export default function EmployeesClient({ canEdit }: { canEdit: boolean }) {
             </div>
           ) : null}
         </Toolbar>
-        {loading ? (
+        {showSkeleton ? (
           <div className="space-y-3">
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
@@ -198,7 +205,7 @@ export default function EmployeesClient({ canEdit }: { canEdit: boolean }) {
         ) : sortedItems.length === 0 ? (
           <p className="text-sm text-[var(--text-muted)]">No employees found.</p>
         ) : (
-          <div className="overflow-auto">
+          <div className={cn("overflow-auto transition-opacity duration-200", isRefreshing && "opacity-50 pointer-events-none")}>
             <Table>
               <TableHead>
                 <TableRow>
@@ -211,7 +218,7 @@ export default function EmployeesClient({ canEdit }: { canEdit: boolean }) {
               <tbody>
                 {sortedItems.map((employee) => (
                   <TableRow key={employee.id}>
-                    <TableCell>{employee.name}</TableCell>
+                    <TableCell className="font-medium">{employee.name}</TableCell>
                     <TableCell>{employee.badgeId ?? "—"}</TableCell>
                     <TableCell>
                       <Badge variant={employee.status === "ACTIVE" ? "success" : "warning"}>

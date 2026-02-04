@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "prisma generate && tsc --noEmit",
     "prisma:validate": "prisma validate && prisma validate --schema=prisma/schema.postgres.prisma",
     "prisma:seed": "node prisma/seed.js",
     "prisma:migrate:sqlite": "prisma migrate dev --name init",

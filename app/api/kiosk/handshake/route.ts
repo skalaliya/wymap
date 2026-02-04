@@ -4,6 +4,9 @@ import { env } from "@/lib/env";
 import { rateLimit } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 import { getRequestId } from "@/lib/request";
+import { createHash } from "crypto";
+
+const EMPLOYEE_CACHE_CAP = 2000;
 
 export const POST = async (request: Request) => {
   const requestId = await getRequestId();
@@ -22,10 +25,12 @@ export const POST = async (request: Request) => {
   const body = (await request.json()) as {
     deviceId?: string;
     siteId?: string;
+    employeesVersion?: string;
   };
 
   const deviceId = body.deviceId ?? env.KIOSK_DEVICE_ID;
   const siteId = body.siteId ?? env.KIOSK_SITE_ID;
+  const clientVersion = body.employeesVersion ?? null;
 
   if (!deviceId || !siteId) {
     return NextResponse.json(
@@ -65,7 +70,45 @@ export const POST = async (request: Request) => {
     data: { lastSeenAt: new Date() },
   });
 
-  logger.info("Kiosk handshake ok", { requestId, deviceId, siteId });
+  // Fetch active employees with badges for cache
+  const employeeCount = await prisma.employee.count({
+    where: { status: "ACTIVE", badgeId: { not: null } },
+  });
+
+  let employees: { badgeId: string; employeeId: string; displayName: string }[] | null = null;
+  let employeesVersion: string | null = null;
+
+  if (employeeCount <= EMPLOYEE_CACHE_CAP) {
+    const rawEmployees = await prisma.employee.findMany({
+      where: { status: "ACTIVE", badgeId: { not: null } },
+      select: { id: true, name: true, badgeId: true, updatedAt: true },
+      orderBy: { badgeId: "asc" },
+    });
+
+    // Compute version hash from employee data
+    const versionData = rawEmployees
+      .map((e) => `${e.id}:${e.badgeId}:${e.updatedAt.getTime()}`)
+      .join("|");
+    employeesVersion = createHash("sha256").update(versionData).digest("hex").slice(0, 16);
+
+    // Only send employees if version changed
+    if (clientVersion !== employeesVersion) {
+      employees = rawEmployees.map((e) => ({
+        badgeId: e.badgeId as string,
+        employeeId: e.id,
+        displayName: e.name,
+      }));
+    }
+  }
+
+  logger.info("Kiosk handshake ok", {
+    requestId,
+    deviceId,
+    siteId,
+    employeeCount,
+    cacheVersion: employeesVersion,
+    cacheIncluded: employees !== null,
+  });
 
   return NextResponse.json({
     ok: true,
@@ -73,5 +116,8 @@ export const POST = async (request: Request) => {
     siteId,
     requestId,
     serverTime: new Date().toISOString(),
+    employeesVersion,
+    employeeCount,
+    employees,
   });
 };

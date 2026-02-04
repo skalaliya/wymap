@@ -13,6 +13,16 @@ import {
   listQueuedEvents,
   removeQueuedEvent,
 } from "@/lib/offline-queue";
+import {
+  cacheEmployees,
+  getAllCachedEmployees,
+  getCacheVersion,
+  getFromMemoryCache,
+  isCacheValid,
+  lookupEmployeeByBadge,
+  setMemoryCache,
+} from "@/lib/employee-cache";
+import { CheckIcon, AlertIcon } from "@/components/ui/icons";
 
 type Props = {
   deviceId: string;
@@ -50,6 +60,7 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
   const [handshake, setHandshake] = useState<"pending" | "ok" | "error">(
     "pending",
   );
+  const [offlineReady, setOfflineReady] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [badgeId, setBadgeId] = useState("");
   const [selectedType, setSelectedType] =
@@ -117,6 +128,26 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
     }
   }, [syncing, updateQueuedCount]);
 
+  // Warm start: Try to hydrate from IDB immediately on mount
+  useEffect(() => {
+    const warmStart = async () => {
+      try {
+        // Fast check for valid cache
+        const valid = await isCacheValid();
+        if (valid) {
+          const employees = await getAllCachedEmployees();
+          if (employees.length > 0) {
+            setMemoryCache(employees);
+            setOfflineReady(true);
+          }
+        }
+      } catch {
+        // Ignore warm start errors, handshake will handle it
+      }
+    };
+    warmStart();
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -161,12 +192,40 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
           scheduleHandshakeRetry("Offline. Waiting for connection.");
           return;
         }
+
+        // Get cache version with timeout to prevent blocking
+        let employeesVersion: string | null = null;
+        try {
+          const versionPromise = getCacheVersion();
+          const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1000));
+          employeesVersion = await Promise.race([versionPromise, timeoutPromise]);
+        } catch {
+          // Ignore cache version errors
+        }
+
         const response = await fetch("/api/kiosk/handshake", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ deviceId, siteId }),
+          body: JSON.stringify({
+            deviceId,
+            siteId,
+            employeesVersion,
+          }),
         });
         if (response.ok) {
+          const data = await response.json();
+
+          if (data.employees && data.employeesVersion) {
+            // 1. Immediately update in-memory cache and state
+            setMemoryCache(data.employees);
+            setOfflineReady(true);
+
+            // 2. Persist to IDB in background (fire-and-forget)
+            cacheEmployees(data.employees, data.employeesVersion).catch(() => {
+              // Ignore persistence errors
+            });
+          }
+
           handshakeAttempts.current = 0;
           setHandshake("ok");
           setStatus(null);
@@ -226,16 +285,37 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
     }
   }, [badgeId, success]);
 
-  const resolveEmployee = async () => {
-    const response = await fetch("/api/kiosk/lookup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ badgeId }),
-    });
-    if (!response.ok) {
-      throw new Error("employee_not_found");
+  const resolveEmployee = async (): Promise<{ employeeId: string; employeeName: string }> => {
+    const memoryCached = getFromMemoryCache(badgeId);
+    if (memoryCached) {
+      return { employeeId: memoryCached.employeeId, employeeName: memoryCached.displayName };
     }
-    return response.json() as Promise<{ employeeId: string; employeeName: string }>;
+
+    try {
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 500));
+      const idbCached = await Promise.race([lookupEmployeeByBadge(badgeId), timeoutPromise]);
+      if (idbCached) {
+        return { employeeId: idbCached.employeeId, employeeName: idbCached.displayName };
+      }
+    } catch {
+      // Ignore IDB errors
+    }
+
+    if (navigator.onLine) {
+      const response = await fetch("/api/kiosk/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ badgeId }),
+      });
+      if (response.ok) {
+        return response.json() as Promise<{ employeeId: string; employeeName: string }>;
+      }
+    }
+
+    if (!navigator.onLine) {
+      throw new Error("employee_not_found_offline");
+    }
+    throw new Error("employee_not_found");
   };
 
   const sendPunch = async () => {
@@ -287,9 +367,14 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
       beep("success");
       setBadgeId("");
       setTimeout(() => setSuccess(false), 2000);
-    } catch {
-      setStatus("Employee not found. Check badge ID.");
-      beep("error");
+    } catch (error) {
+      if (error instanceof Error && error.message === "employee_not_found_offline") {
+        setStatus("Employee not found. Check badge ID.");
+        beep("error");
+      } else {
+        setStatus("Employee not found. Check badge ID.");
+        beep("error");
+      }
     }
   };
 
@@ -314,14 +399,36 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Badge data-testid="handshake-status" variant={handshakeBadge}>
-              {handshake === "ok"
-                ? "Handshake OK"
-                : handshake === "error"
-                  ? "Handshake failed"
-                  : "Handshake pending"}
+              {handshake === "ok" ? (
+                <>
+                  <CheckIcon size={12} className="mr-1" />
+                  Handshake OK
+                </>
+              ) : handshake === "error" ? (
+                <>
+                  <AlertIcon size={12} className="mr-1" />
+                  Handshake failed
+                </>
+              ) : (
+                "Handshake pending"
+              )}
             </Badge>
             <Badge data-testid="online-status" variant={online ? "success" : "warning"}>
               {online ? "Online" : "Offline"}
+            </Badge>
+            {/* Offline Readiness Badge */}
+            <Badge
+              data-testid="offline-ready"
+              variant={offlineReady ? "success" : "warning"}
+            >
+              {offlineReady ? (
+                <>
+                  <CheckIcon size={12} className="mr-1" />
+                  Ready
+                </>
+              ) : (
+                "Not Ready"
+              )}
             </Badge>
           </div>
         </div>
