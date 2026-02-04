@@ -19,11 +19,9 @@
 }
 
 body {
-  background: radial-gradient(
-      circle at top,
+  background: radial-gradient(circle at top,
       rgba(109, 0, 255, 0.25),
-      transparent 55%
-    ),
+      transparent 55%),
     radial-gradient(circle at 20% 20%, rgba(55, 21, 224, 0.22), transparent 50%),
     linear-gradient(135deg, #03010a 0%, #0c0722 45%, #080318 100%);
   color: var(--foreground);
@@ -42,3 +40,5 @@ a {
   padding: 24px;
   backdrop-filter: blur(16px);
 }
+
+/* Force CI Rebuild - CSS Corruption Fix */
