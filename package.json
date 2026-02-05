@@ -27,6 +27,9 @@
     "react-dom": "19.2.3",
     "zod": "^4.1.11"
   },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
   "devDependencies": {
     "@playwright/test": "^1.58.1",
     "@tailwindcss/postcss": "^4",
