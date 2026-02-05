@@ -25,7 +25,7 @@ test.describe("kiosk flows", () => {
     await badgeInput.fill("BADGE-1001");
     await badgeInput.press("Enter");
 
-    await expect(page.getByTestId("status-message")).toContainText("Avery Stone", { timeout: 10000 });
+    await expect(page.getByTestId("status-message")).toContainText("Liam Smith", { timeout: 10000 });
     await expect(page.getByTestId("status-message")).toContainText("IN");
 
     await page.waitForTimeout(1500);
