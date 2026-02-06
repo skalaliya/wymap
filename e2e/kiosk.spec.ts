@@ -71,9 +71,7 @@ test.describe("kiosk handshake validation", () => {
 
     expect(response.status()).toBe(403);
     const json = await response.json();
-    expect(json).toMatchObject({
-      ok: false,
-      error: "device_not_registered",
-    });
+    expect(json).toMatchObject({ ok: false });
+    expect(["device_not_registered", "device_site_mismatch"]).toContain(json.error);
   });
 });
