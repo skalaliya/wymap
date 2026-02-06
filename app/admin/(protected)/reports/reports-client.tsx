@@ -108,7 +108,7 @@ export default function ReportsClient({
         <p className="text-sm text-[var(--text-muted)]">
           Filters are stored in the URL for sharing and repeat exports.
         </p>
-        <Button onClick={download} loading={loading}>
+        <Button onClick={download} loading={loading} className="w-full sm:w-auto">
           Download CSV
         </Button>
       </div>

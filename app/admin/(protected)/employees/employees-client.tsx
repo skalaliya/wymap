@@ -205,8 +205,13 @@ export default function EmployeesClient({ canEdit }: { canEdit: boolean }) {
         ) : sortedItems.length === 0 ? (
           <p className="text-sm text-[var(--text-muted)]">No employees found.</p>
         ) : (
-          <div className={cn("overflow-auto transition-opacity duration-200", isRefreshing && "opacity-50 pointer-events-none")}>
-            <Table>
+        <div
+          className={cn(
+            "overflow-x-auto rounded-xl border border-[var(--surface-border)] transition-opacity duration-200",
+            isRefreshing && "pointer-events-none opacity-50",
+          )}
+        >
+            <Table className="min-w-[720px]">
               <TableHead>
                 <TableRow>
                   <TableHeaderCell>Name</TableHeaderCell>
@@ -227,11 +232,12 @@ export default function EmployeesClient({ canEdit }: { canEdit: boolean }) {
                     </TableCell>
                     <TableCell>
                       {canEdit ? (
-                        <div className="flex flex-wrap gap-2">
+                        <div className="grid gap-2 sm:flex sm:flex-wrap">
                           <Button
                             variant="secondary"
                             onClick={() => setConfirm({ id: employee.id, action: "deactivate" })}
                             disabled={saving}
+                            className="w-full sm:w-auto"
                           >
                             {employee.status === "ACTIVE" ? "Deactivate" : "Activate"}
                           </Button>
@@ -239,6 +245,7 @@ export default function EmployeesClient({ canEdit }: { canEdit: boolean }) {
                             variant="ghost"
                             onClick={() => setConfirm({ id: employee.id, action: "rotate" })}
                             disabled={saving}
+                            className="w-full sm:w-auto"
                           >
                             Rotate token
                           </Button>

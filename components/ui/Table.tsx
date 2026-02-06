@@ -5,7 +5,7 @@ export const Table = ({
   className,
   ...props
 }: TableHTMLAttributes<HTMLTableElement>) => (
-  <table className={cn("w-full text-sm", className)} {...props} />
+  <table className={cn("w-full min-w-full text-sm", className)} {...props} />
 );
 
 export const TableHead = ({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) => (
@@ -23,7 +23,7 @@ export const TableRow = ({ className, ...props }: HTMLAttributes<HTMLTableRowEle
 );
 
 export const TableCell = ({ className, ...props }: HTMLAttributes<HTMLTableCellElement>) => (
-  <td className={cn("px-3 py-2", className)} {...props} />
+  <td className={cn("px-3 py-2 align-top", className)} {...props} />
 );
 
 export const TableHeaderCell = ({ className, ...props }: HTMLAttributes<HTMLTableCellElement>) => (

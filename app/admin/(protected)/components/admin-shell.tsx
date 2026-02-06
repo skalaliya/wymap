@@ -28,8 +28,23 @@ export default function AdminShell({ userName, children }: AdminShellProps) {
     };
   }, [mobileOpen]);
 
+  useEffect(() => {
+    if (!mobileOpen) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMobileOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mobileOpen]);
+
   return (
-    <div className="min-h-screen lg:flex">
+    <div className="min-h-screen overflow-x-clip lg:flex">
       <div className="hidden lg:block lg:w-64 lg:shrink-0">
         <Sidebar />
       </div>
@@ -47,7 +62,7 @@ export default function AdminShell({ userName, children }: AdminShellProps) {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] transform border-r border-[var(--surface-border)] bg-[rgba(6,4,15,0.97)] transition-transform lg:hidden",
+          "fixed inset-y-0 left-0 z-50 w-72 max-w-[82vw] transform border-r border-[var(--surface-border)] bg-[rgba(6,4,15,0.97)] shadow-2xl transition-transform lg:hidden",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
         aria-label="Admin navigation drawer"
@@ -67,9 +82,9 @@ export default function AdminShell({ userName, children }: AdminShellProps) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar userName={userName} onOpenMenu={() => setMobileOpen(true)} />
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-3 py-5 sm:gap-6 sm:px-6 sm:py-6">
           <Breadcrumbs />
-          <main>{children}</main>
+          <main className="min-w-0">{children}</main>
         </div>
       </div>
     </div>

@@ -127,8 +127,8 @@ export default function TimesheetsClient() {
       ) : rows.length === 0 ? (
         <p className="text-sm text-[var(--text-muted)]">No timesheet data for this date.</p>
       ) : (
-        <div className="overflow-auto">
-          <Table>
+        <div className="overflow-x-auto rounded-xl border border-[var(--surface-border)]">
+          <Table className="min-w-[900px]">
             <TableHead>
               <TableRow>
                 <TableHeaderCell>Employee</TableHeaderCell>

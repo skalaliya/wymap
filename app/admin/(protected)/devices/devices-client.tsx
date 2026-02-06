@@ -161,8 +161,8 @@ export default function DevicesClient({ sites, canEdit }: { sites: Site[]; canEd
       ) : items.length === 0 ? (
         <p className="text-sm text-[var(--text-muted)]">No devices found.</p>
       ) : (
-        <div className="overflow-auto">
-          <Table>
+        <div className="overflow-x-auto rounded-xl border border-[var(--surface-border)]">
+          <Table className="min-w-[760px]">
             <TableHead>
               <TableRow>
                 <TableHeaderCell>Device</TableHeaderCell>
@@ -185,7 +185,11 @@ export default function DevicesClient({ sites, canEdit }: { sites: Site[]; canEd
                   <TableCell>{device.lastSeenAt ?? "Never"}</TableCell>
                   <TableCell>
                     {canEdit ? (
-                      <Button variant="secondary" onClick={() => setConfirmId(device.id)}>
+                      <Button
+                        variant="secondary"
+                        onClick={() => setConfirmId(device.id)}
+                        className="w-full sm:w-auto"
+                      >
                         {device.active ? "Deactivate" : "Activate"}
                       </Button>
                     ) : (

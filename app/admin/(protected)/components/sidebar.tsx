@@ -44,15 +44,16 @@ export default function Sidebar({ className, onNavigate }: SidebarProps) {
               key={item.href}
               href={item.href}
               onClick={onNavigate}
+              data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
               className={cn(
-                "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-[var(--text-muted)] transition hover:bg-white/5 hover:text-[var(--foreground)]",
+                "flex min-h-12 items-center gap-3 rounded-lg px-3 py-2 text-[var(--text-muted)] transition hover:bg-white/5 hover:text-[var(--foreground)]",
                 pathname.startsWith(item.href)
                   ? "bg-white/10 text-[var(--foreground)]"
                   : "",
               )}
             >
-              <item.icon className="text-[var(--purple-1)]" />
-              {item.label}
+              <item.icon className="shrink-0 text-[var(--purple-1)]" />
+              <span className="truncate">{item.label}</span>
             </Link>
           ))}
         </nav>

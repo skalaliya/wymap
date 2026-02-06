@@ -105,9 +105,9 @@ export default function DashboardClient() {
             {data.offlineDevices.map((device) => (
               <div
                 key={device.id}
-                className="flex flex-wrap items-center justify-between gap-2"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--surface-border)]/70 px-3 py-2"
               >
-                <span>
+                <span className="min-w-0 truncate">
                   {device.name} • {device.site}
                 </span>
                 <span className="text-[var(--text-muted)]">

@@ -148,8 +148,8 @@ export default function SitesClient({ canEdit }: { canEdit: boolean }) {
       ) : items.length === 0 ? (
         <p className="text-sm text-[var(--text-muted)]">No sites found.</p>
       ) : (
-        <div className="overflow-auto">
-          <Table>
+        <div className="overflow-x-auto rounded-xl border border-[var(--surface-border)]">
+          <Table className="min-w-[640px]">
             <TableHead>
               <TableRow>
                 <TableHeaderCell>Site</TableHeaderCell>
@@ -170,7 +170,11 @@ export default function SitesClient({ canEdit }: { canEdit: boolean }) {
                   </TableCell>
                   <TableCell>
                     {canEdit ? (
-                      <Button variant="secondary" onClick={() => setConfirmId(site.id)}>
+                      <Button
+                        variant="secondary"
+                        onClick={() => setConfirmId(site.id)}
+                        className="w-full sm:w-auto"
+                      >
                         {site.active ? "Deactivate" : "Activate"}
                       </Button>
                     ) : (
