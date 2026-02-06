@@ -18,7 +18,7 @@
     "prisma:generate:postgres": "prisma generate --schema=prisma/schema.postgres.prisma",
     "test": "DATABASE_URL=\"file:./test.db\" AUTH_SECRET=\"test-secret\" prisma db push --force-reset && vitest run",
     "e2e:setup": "DATABASE_URL=\"file:./e2e.db\" AUTH_SECRET=\"e2e-secret\" prisma migrate reset --force --skip-seed && DATABASE_URL=\"file:./e2e.db\" AUTH_SECRET=\"e2e-secret\" AUTH_ADMIN_EMAIL=\"admin@wymap.local\" AUTH_ADMIN_PASSWORD=\"ChangeMe123!\" pnpm prisma:seed",
-    "test:e2e": "pnpm e2e:setup && DATABASE_URL=\"file:./e2e.db\" AUTH_SECRET=\"e2e-secret\" pnpm build && DATABASE_URL=\"file:./e2e.db\" AUTH_SECRET=\"e2e-secret\" pnpm playwright test"
+    "test:e2e": "pnpm e2e:setup && DATABASE_URL=\"file:./e2e.db\" AUTH_SECRET=\"e2e-secret\" KIOSK_DEVICE_ID=\"device_alpha\" KIOSK_SITE_ID=\"site_hq\" pnpm build && DATABASE_URL=\"file:./e2e.db\" AUTH_SECRET=\"e2e-secret\" KIOSK_DEVICE_ID=\"device_alpha\" KIOSK_SITE_ID=\"site_hq\" pnpm playwright test"
   },
   "dependencies": {
     "@prisma/client": "^6.9.0",
