@@ -96,3 +96,18 @@ export const ChevronRightIcon = ({ size = 16, ...props }: IconProps) => (
     <path d="M9 6l6 6-6 6" />
   </svg>
 );
+
+export const MenuIcon = ({ size = 20, ...props }: IconProps) => (
+  <svg {...baseProps(size)} {...props}>
+    <path d="M4 7h16" />
+    <path d="M4 12h16" />
+    <path d="M4 17h16" />
+  </svg>
+);
+
+export const CloseIcon = ({ size = 20, ...props }: IconProps) => (
+  <svg {...baseProps(size)} {...props}>
+    <path d="M6 6l12 12" />
+    <path d="M18 6L6 18" />
+  </svg>
+);

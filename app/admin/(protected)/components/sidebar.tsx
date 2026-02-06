@@ -1,5 +1,7 @@
+"use client";
+
 import Link from "next/link";
-import { headers } from "next/headers";
+import { usePathname } from "next/navigation";
 import { DashboardIcon, UsersIcon, SiteIcon, DeviceIcon, TimeIcon, ReportIcon, AlertIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 
@@ -13,13 +15,26 @@ const navItems = [
   { href: "/admin/reports", label: "Reports", icon: ReportIcon },
 ];
 
-export default async function Sidebar() {
-  const headerList = await headers();
-  const path = headerList.get("x-pathname") ?? "";
+type SidebarProps = {
+  className?: string;
+  onNavigate?: () => void;
+};
+
+export default function Sidebar({ className, onNavigate }: SidebarProps) {
+  const pathname = usePathname() ?? "";
   return (
-    <aside className="border-b border-[var(--surface-border)] bg-[rgba(6,4,15,0.92)] px-6 py-6 lg:min-h-screen lg:w-64 lg:border-b-0 lg:border-r">
+    <aside
+      className={cn(
+        "border-b border-[var(--surface-border)] bg-[rgba(6,4,15,0.92)] px-5 py-5 lg:min-h-screen lg:w-64 lg:border-b-0 lg:border-r",
+        className,
+      )}
+    >
       <div className="space-y-6">
-        <Link href="/admin/dashboard" className="flex items-center gap-3 text-lg font-semibold">
+        <Link
+          href="/admin/dashboard"
+          className="flex items-center gap-3 text-lg font-semibold"
+          onClick={onNavigate}
+        >
           <span className="h-3 w-3 rounded-full bg-[var(--violet-1)]" />
           Wymap Admin
         </Link>
@@ -28,9 +43,10 @@ export default async function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onNavigate}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-[var(--text-muted)] transition hover:bg-white/5 hover:text-[var(--foreground)]",
-                path.startsWith(item.href)
+                "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-[var(--text-muted)] transition hover:bg-white/5 hover:text-[var(--foreground)]",
+                pathname.startsWith(item.href)
                   ? "bg-white/10 text-[var(--foreground)]"
                   : "",
               )}

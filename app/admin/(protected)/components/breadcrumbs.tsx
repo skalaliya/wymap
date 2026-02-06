@@ -1,5 +1,7 @@
+"use client";
+
 import Link from "next/link";
-import { headers } from "next/headers";
+import { usePathname } from "next/navigation";
 import { ChevronRightIcon } from "@/components/ui/icons";
 
 const labelMap: Record<string, string> = {
@@ -12,9 +14,8 @@ const labelMap: Record<string, string> = {
   reports: "Reports",
 };
 
-export default async function Breadcrumbs() {
-  const headerList = await headers();
-  const path = headerList.get("x-pathname") ?? "";
+export default function Breadcrumbs() {
+  const path = usePathname() ?? "";
   const parts = path.split("/").filter(Boolean);
 
   if (parts.length === 0) {
