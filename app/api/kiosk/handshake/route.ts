@@ -5,6 +5,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 import { getRequestId } from "@/lib/request";
 import { createHash } from "crypto";
+import { resolveDeviceByRef, resolveSiteByRef } from "@/lib/kiosk-refs";
 
 const EMPLOYEE_CACHE_CAP = 2000;
 type HandshakeBody = {
@@ -38,36 +39,32 @@ export const POST = async (request: Request) => {
     body = {};
   }
 
-  const deviceId = body.deviceId ?? env.KIOSK_DEVICE_ID;
-  const siteId = body.siteId ?? env.KIOSK_SITE_ID;
+  const deviceRef = (body.deviceId ?? env.KIOSK_DEVICE_ID ?? "").trim();
+  const siteRef = (body.siteId ?? env.KIOSK_SITE_ID ?? "").trim();
   const clientVersion = body.employeesVersion ?? null;
 
-  if (!deviceId || !siteId) {
+  if (!deviceRef || !siteRef) {
     return NextResponse.json(
       { ok: false, error: "missing_device_or_site" },
       { status: 400 },
     );
   }
 
-  if (
-    (env.KIOSK_DEVICE_ID && env.KIOSK_DEVICE_ID !== deviceId) ||
-    (env.KIOSK_SITE_ID && env.KIOSK_SITE_ID !== siteId)
-  ) {
-    return NextResponse.json(
-      { ok: false, error: "device_site_mismatch" },
-      { status: 403 },
-    );
-  }
+  const [device, site, configuredDevice, configuredSite] = await Promise.all([
+    resolveDeviceByRef(deviceRef),
+    resolveSiteByRef(siteRef),
+    env.KIOSK_DEVICE_ID ? resolveDeviceByRef(env.KIOSK_DEVICE_ID) : Promise.resolve(null),
+    env.KIOSK_SITE_ID ? resolveSiteByRef(env.KIOSK_SITE_ID) : Promise.resolve(null),
+  ]);
 
-  const device = await prisma.device.findUnique({
-    where: { id: deviceId },
-  });
+  const requestedSiteMatchesDevice =
+    siteRef === device?.siteId || site?.id === device?.siteId;
 
-  if (!device || !device.active || device.siteId !== siteId) {
+  if (!device || !device.active || !requestedSiteMatchesDevice) {
     logger.warn("Kiosk handshake rejected", {
       requestId,
-      deviceId,
-      siteId,
+      deviceRef,
+      siteRef,
     });
     return NextResponse.json(
       { ok: false, error: "device_not_registered" },
@@ -75,8 +72,18 @@ export const POST = async (request: Request) => {
     );
   }
 
+  if (
+    (env.KIOSK_DEVICE_ID && (!configuredDevice || configuredDevice.id !== device.id)) ||
+    (env.KIOSK_SITE_ID && (!configuredSite || configuredSite.id !== device.siteId))
+  ) {
+    return NextResponse.json(
+      { ok: false, error: "device_site_mismatch" },
+      { status: 403 },
+    );
+  }
+
   await prisma.device.update({
-    where: { id: deviceId },
+    where: { id: device.id },
     data: { lastSeenAt: new Date() },
   });
 
@@ -113,8 +120,8 @@ export const POST = async (request: Request) => {
 
   logger.info("Kiosk handshake ok", {
     requestId,
-    deviceId,
-    siteId,
+    deviceId: device.id,
+    siteId: device.siteId,
     employeeCount,
     cacheVersion: employeesVersion,
     cacheIncluded: employees !== null,
@@ -122,8 +129,8 @@ export const POST = async (request: Request) => {
 
   return NextResponse.json({
     ok: true,
-    deviceId,
-    siteId,
+    deviceId: device.id,
+    siteId: device.siteId,
     requestId,
     serverTime: new Date().toISOString(),
     employeesVersion,

@@ -5,6 +5,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 import { getRequestId } from "@/lib/request";
 import { clockEventSchema, createClockEvent } from "@/lib/clock-events";
+import { resolveDeviceByRef, resolveSiteByRef } from "@/lib/kiosk-refs";
 
 export const POST = async (request: Request) => {
   const requestId = await getRequestId();
@@ -38,26 +39,32 @@ export const POST = async (request: Request) => {
     );
   }
 
-  const { deviceId, siteId, employeeId, source } = parsed.data;
+  const { deviceId: deviceRef, siteId: siteRef, employeeId, source } = parsed.data;
 
-  if (
-    (env.KIOSK_DEVICE_ID && env.KIOSK_DEVICE_ID !== deviceId) ||
-    (env.KIOSK_SITE_ID && env.KIOSK_SITE_ID !== siteId)
-  ) {
+  const [device, site, employee, configuredDevice, configuredSite] = await Promise.all([
+    resolveDeviceByRef(deviceRef),
+    resolveSiteByRef(siteRef),
+    prisma.employee.findUnique({ where: { id: employeeId } }),
+    env.KIOSK_DEVICE_ID ? resolveDeviceByRef(env.KIOSK_DEVICE_ID) : Promise.resolve(null),
+    env.KIOSK_SITE_ID ? resolveSiteByRef(env.KIOSK_SITE_ID) : Promise.resolve(null),
+  ]);
+
+  const requestedSiteMatchesDevice =
+    siteRef === device?.siteId || site?.id === device?.siteId;
+
+  if (!device || !device.active || !requestedSiteMatchesDevice) {
     return NextResponse.json(
-      { ok: false, error: "device_site_mismatch" },
+      { ok: false, error: "device_not_registered" },
       { status: 403 },
     );
   }
 
-  const [device, employee] = await Promise.all([
-    prisma.device.findUnique({ where: { id: deviceId } }),
-    prisma.employee.findUnique({ where: { id: employeeId } }),
-  ]);
-
-  if (!device || !device.active || device.siteId !== siteId) {
+  if (
+    (env.KIOSK_DEVICE_ID && (!configuredDevice || configuredDevice.id !== device.id)) ||
+    (env.KIOSK_SITE_ID && (!configuredSite || configuredSite.id !== device.siteId))
+  ) {
     return NextResponse.json(
-      { ok: false, error: "device_not_registered" },
+      { ok: false, error: "device_site_mismatch" },
       { status: 403 },
     );
   }
@@ -77,11 +84,15 @@ export const POST = async (request: Request) => {
   }
 
   await prisma.device.update({
-    where: { id: deviceId },
+    where: { id: device.id },
     data: { lastSeenAt: new Date() },
   });
 
-  const { event, created } = await createClockEvent(parsed.data);
+  const { event, created } = await createClockEvent({
+    ...parsed.data,
+    deviceId: device.id,
+    siteId: device.siteId,
+  });
 
   logger.info("Clock event recorded", {
     requestId,

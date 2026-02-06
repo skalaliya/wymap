@@ -72,6 +72,8 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const idleTimer = useRef<NodeJS.Timeout | null>(null);
   const [online, setOnline] = useState(true);
+  const [resolvedDeviceId, setResolvedDeviceId] = useState(deviceId);
+  const [resolvedSiteId, setResolvedSiteId] = useState(siteId);
   const [queuedCount, setQueuedCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -92,6 +94,13 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
   const queuePollTimer = useRef<NodeJS.Timeout | null>(null);
   const handshakeAttempts = useRef(0);
   const lastHandshakeAt = useRef<number | null>(null);
+  const hasHandshakeSucceeded = useRef(false);
+
+  useEffect(() => {
+    setResolvedDeviceId(deviceId);
+    setResolvedSiteId(siteId);
+    hasHandshakeSucceeded.current = false;
+  }, [deviceId, siteId]);
 
   const resetIdle = useCallback(() => {
     if (idleTimer.current) {
@@ -264,6 +273,13 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
       }, nextDelay);
     };
 
+    const markRecoverableHandshakeFailure = (message: string) => {
+      if (!hasHandshakeSucceeded.current) {
+        setHandshake("error");
+      }
+      scheduleHandshakeRetry(message);
+    };
+
     const runHandshake = async () => {
       if (handshakeInFlight.current) {
         return;
@@ -279,8 +295,7 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
       handshakeInFlight.current = true;
       try {
         if (!navigator.onLine) {
-          setHandshake("error");
-          scheduleHandshakeRetry("Offline. Waiting for connection.");
+          markRecoverableHandshakeFailure("Offline. Waiting for connection.");
           return;
         }
 
@@ -305,6 +320,12 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
         });
         if (response.ok) {
           const data = await response.json();
+          if (typeof data.deviceId === "string" && data.deviceId.length > 0) {
+            setResolvedDeviceId(data.deviceId);
+          }
+          if (typeof data.siteId === "string" && data.siteId.length > 0) {
+            setResolvedSiteId(data.siteId);
+          }
 
           if (data.employees && data.employeesVersion) {
             // 1. Immediately update in-memory cache and state
@@ -331,6 +352,7 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
             }
           }
 
+          hasHandshakeSucceeded.current = true;
           handshakeAttempts.current = 0;
           setHandshake("ok");
           setStatus(null);
@@ -351,19 +373,20 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
           (errorCode === "device_not_registered" ||
             errorCode === "device_site_mismatch")
         ) {
+          hasHandshakeSucceeded.current = false;
+          setHandshake("error");
           setStatus("Device not registered. Contact admin.");
           return;
         }
 
         if (response.status === 429 || errorCode === "rate_limited") {
-          scheduleHandshakeRetry("Server busy. Retrying handshake...");
+          markRecoverableHandshakeFailure("Server busy. Retrying handshake...");
           return;
         }
 
-        scheduleHandshakeRetry("Handshake failed. Retrying...");
+        markRecoverableHandshakeFailure("Handshake failed. Retrying...");
       } catch {
-        setHandshake("error");
-        scheduleHandshakeRetry("Handshake failed. Retrying...");
+        markRecoverableHandshakeFailure("Handshake failed. Retrying...");
       } finally {
         handshakeInFlight.current = false;
       }
@@ -509,8 +532,8 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
       const idempotencyKey = crypto.randomUUID();
       const payload: ClockEventPayload = {
         employeeId,
-        siteId,
-        deviceId,
+        siteId: resolvedSiteId,
+        deviceId: resolvedDeviceId,
         type: selectedType,
         source: online ? "KIOSK" : "OFFLINE_SYNC",
         occurredAt: new Date().toISOString(),
@@ -620,7 +643,7 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
             Punch Terminal
           </h1>
           <p className="mt-2 text-sm text-[var(--text-muted)]">
-            {deviceId} • {siteId}
+            {resolvedDeviceId} • {resolvedSiteId}
           </p>
         </div>
 
