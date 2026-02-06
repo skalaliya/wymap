@@ -4,6 +4,12 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
 
+if (!env.AUTH_SECRET) {
+  throw new Error(
+    "Invalid environment configuration: AUTH_SECRET is required for auth routes",
+  );
+}
+
 export const { handlers, auth } = NextAuth({
   secret: env.AUTH_SECRET,
   session: { strategy: "jwt" },

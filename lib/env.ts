@@ -1,18 +1,30 @@
 import { z } from "zod";
 
+const optionalString = z.preprocess(
+  (value) =>
+    typeof value === "string" && value.trim().length === 0 ? undefined : value,
+  z.string().min(1).optional(),
+);
+
+const optionalEmail = z.preprocess(
+  (value) =>
+    typeof value === "string" && value.trim().length === 0 ? undefined : value,
+  z.string().email().optional(),
+);
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
-  AUTH_SECRET: z.string().min(1, "AUTH_SECRET is required"),
-  AUTH_ADMIN_EMAIL: z.string().email().optional(),
-  AUTH_ADMIN_PASSWORD: z.string().min(8).optional(),
-  KIOSK_DEVICE_ID: z.string().min(1).optional(),
-  KIOSK_SITE_ID: z.string().min(1).optional(),
-  RATE_LIMIT_WINDOW_MS: z.string().optional(),
-  RATE_LIMIT_MAX: z.string().optional(),
-  REDIS_URL: z.string().optional(),
-  APP_VERSION: z.string().optional(),
-  GIT_COMMIT: z.string().optional(),
+  AUTH_SECRET: optionalString,
+  AUTH_ADMIN_EMAIL: optionalEmail,
+  AUTH_ADMIN_PASSWORD: optionalString,
+  KIOSK_DEVICE_ID: optionalString,
+  KIOSK_SITE_ID: optionalString,
+  RATE_LIMIT_WINDOW_MS: optionalString,
+  RATE_LIMIT_MAX: optionalString,
+  REDIS_URL: optionalString,
+  APP_VERSION: optionalString,
+  GIT_COMMIT: optionalString,
 });
 
 // Skip validation during build phase (Next.js sets this during static generation)
@@ -25,7 +37,7 @@ if (isBuildPhase) {
   envData = {
     NODE_ENV: (process.env.NODE_ENV as "development" | "test" | "production") ?? "development",
     DATABASE_URL: process.env.DATABASE_URL ?? "file:./dev.db",
-    AUTH_SECRET: process.env.AUTH_SECRET ?? "build-time-placeholder",
+    AUTH_SECRET: process.env.AUTH_SECRET,
     AUTH_ADMIN_EMAIL: process.env.AUTH_ADMIN_EMAIL,
     AUTH_ADMIN_PASSWORD: process.env.AUTH_ADMIN_PASSWORD,
     KIOSK_DEVICE_ID: process.env.KIOSK_DEVICE_ID,
