@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Disable Turbopack persistent file system caching to avoid corrupted SST files
+  // This is a workaround for Turbopack database corruption issues
+  experimental: {
+    turbopackFileSystemCacheForDev: false,
+  },
   async headers() {
     const headers = [
       {

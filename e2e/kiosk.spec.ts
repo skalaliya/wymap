@@ -73,7 +73,7 @@ test.describe("kiosk handshake validation", () => {
     const json = await response.json();
     expect(json).toMatchObject({
       ok: false,
-      error: "device_site_mismatch",
+      error: "device_not_registered",
     });
   });
 });
