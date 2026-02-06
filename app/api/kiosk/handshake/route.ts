@@ -7,6 +7,11 @@ import { getRequestId } from "@/lib/request";
 import { createHash } from "crypto";
 
 const EMPLOYEE_CACHE_CAP = 2000;
+type HandshakeBody = {
+  deviceId?: string;
+  siteId?: string;
+  employeesVersion?: string;
+};
 
 export const POST = async (request: Request) => {
   const requestId = await getRequestId();
@@ -22,11 +27,16 @@ export const POST = async (request: Request) => {
     );
   }
 
-  const body = (await request.json()) as {
-    deviceId?: string;
-    siteId?: string;
-    employeesVersion?: string;
-  };
+  let body: HandshakeBody = {};
+
+  try {
+    const parsed = await request.json();
+    if (parsed && typeof parsed === "object") {
+      body = parsed as HandshakeBody;
+    }
+  } catch {
+    body = {};
+  }
 
   const deviceId = body.deviceId ?? env.KIOSK_DEVICE_ID;
   const siteId = body.siteId ?? env.KIOSK_SITE_ID;
