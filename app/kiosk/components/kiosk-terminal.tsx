@@ -10,6 +10,7 @@ import {
   countQueuedEvents,
   enqueueEvent,
   listQueuedEvents,
+  markQueuedEventAttempt,
   removeQueuedEvent,
 } from "@/lib/offline-queue";
 import {
@@ -17,6 +18,7 @@ import {
   getAllCachedEmployees,
   getCacheVersion,
   getFromMemoryCache,
+  isMemoryCacheReady,
   isCacheValid,
   lookupEmployeeByBadge,
   setMemoryCache,
@@ -45,9 +47,25 @@ const punchTypes: ClockEventPayload["type"][] = [
   "BREAK_END",
 ];
 
-const idleMs = 30_000;
+const idleMs = 120_000;
 const handshakeMinIntervalMs = 2_000;
 const handshakeMaxBackoffMs = 30_000;
+const fetchTimeoutMs = 25_000;
+const syncMaxBatchSize = 100;
+const maxQueueRetryAttempts = 20;
+
+const withTimeout = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), fetchTimeoutMs);
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+const isDropSyncStatus = (status: number) => status === 400 || status === 403;
 
 export default function KioskTerminal({ deviceId, siteId }: Props) {
   const router = useRouter();
@@ -56,18 +74,22 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
   const [online, setOnline] = useState(true);
   const [queuedCount, setQueuedCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [handshake, setHandshake] = useState<"pending" | "ok" | "error">(
     "pending",
   );
   const [offlineReady, setOfflineReady] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
+  const [syncMessage, setSyncMessage] = useState<string>("Queue is healthy.");
   const [badgeId, setBadgeId] = useState("");
   const [selectedType, setSelectedType] =
     useState<ClockEventPayload["type"]>("IN");
   const [status, setStatus] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const handshakeInFlight = useRef(false);
+  const syncInFlight = useRef(false);
   const handshakeTimer = useRef<NodeJS.Timeout | null>(null);
+  const queuePollTimer = useRef<NodeJS.Timeout | null>(null);
   const handshakeAttempts = useRef(0);
   const lastHandshakeAt = useRef<number | null>(null);
 
@@ -102,30 +124,100 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
     }
   }, []);
 
-  const syncQueue = useCallback(async () => {
-    if (!navigator.onLine || syncing) {
-      return;
-    }
-    setSyncing(true);
-    try {
-      const queued = await listQueuedEvents();
-      for (const record of queued) {
-        const response = await fetch("/api/kiosk/clock", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(record.payload),
-        });
-
-        if (response.ok) {
-          await removeQueuedEvent(record.idempotencyKey);
-        }
+  const syncQueue = useCallback(
+    async () => {
+      if (!navigator.onLine) {
+        setSyncMessage("Offline. Queue sync paused.");
+        return;
       }
-      setLastSync(new Date().toLocaleTimeString());
-    } finally {
-      await updateQueuedCount();
-      setSyncing(false);
-    }
-  }, [syncing, updateQueuedCount]);
+      if (syncInFlight.current) {
+        return;
+      }
+
+      syncInFlight.current = true;
+      setSyncing(true);
+      try {
+        const queued = await listQueuedEvents();
+        if (queued.length === 0) {
+          setSyncMessage("Queue is healthy.");
+          setLastSync(new Date().toLocaleTimeString());
+          return;
+        }
+
+        let synced = 0;
+        let retried = 0;
+        let dropped = 0;
+        const batch = queued.slice(0, syncMaxBatchSize);
+
+        for (const record of batch) {
+          try {
+            const response = await withTimeout("/api/kiosk/clock", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(record.payload),
+            });
+
+            if (response.ok) {
+              await removeQueuedEvent(record.idempotencyKey);
+              synced += 1;
+              continue;
+            }
+
+            if (isDropSyncStatus(response.status)) {
+              await removeQueuedEvent(record.idempotencyKey);
+              dropped += 1;
+              continue;
+            }
+
+            const exhaustedRetries = record.attempts + 1 >= maxQueueRetryAttempts;
+            if (exhaustedRetries) {
+              await removeQueuedEvent(record.idempotencyKey);
+              dropped += 1;
+              continue;
+            }
+
+            const retryReason = `retry_http_${response.status}`;
+            await markQueuedEventAttempt(record.idempotencyKey, retryReason);
+            retried += 1;
+          } catch {
+            const exhaustedRetries = record.attempts + 1 >= maxQueueRetryAttempts;
+            if (exhaustedRetries) {
+              await removeQueuedEvent(record.idempotencyKey);
+              dropped += 1;
+              continue;
+            }
+            await markQueuedEventAttempt(record.idempotencyKey, "retry_network_error");
+            retried += 1;
+          }
+        }
+
+        const remaining = await countQueuedEvents();
+        setLastSync(new Date().toLocaleTimeString());
+
+        if (remaining === 0) {
+          setSyncMessage("All queued events synced.");
+        } else {
+          setSyncMessage(
+            `Synced ${synced}, retrying ${retried}, dropped ${dropped}. ${remaining} remaining.`,
+          );
+        }
+
+        if (remaining > 0) {
+          if (queuePollTimer.current) {
+            clearTimeout(queuePollTimer.current);
+          }
+          queuePollTimer.current = setTimeout(() => {
+            syncQueue();
+          }, 5_000);
+        }
+      } finally {
+        await updateQueuedCount();
+        syncInFlight.current = false;
+        setSyncing(false);
+      }
+    },
+    [updateQueuedCount],
+  );
 
   // Warm start: Try to hydrate from IDB immediately on mount
   useEffect(() => {
@@ -202,7 +294,7 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
           // Ignore cache version errors
         }
 
-        const response = await fetch("/api/kiosk/handshake", {
+        const response = await withTimeout("/api/kiosk/handshake", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -223,6 +315,20 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
             cacheEmployees(data.employees, data.employeesVersion).catch(() => {
               // Ignore persistence errors
             });
+          } else if (!isMemoryCacheReady()) {
+            // If server doesn't send employees, verify local cache is still valid.
+            const valid = await isCacheValid();
+            if (valid) {
+              const cachedEmployees = await getAllCachedEmployees();
+              if (cachedEmployees.length > 0) {
+                setMemoryCache(cachedEmployees);
+                setOfflineReady(true);
+              } else {
+                setOfflineReady(false);
+              }
+            } else {
+              setOfflineReady(false);
+            }
           }
 
           handshakeAttempts.current = 0;
@@ -231,9 +337,26 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
           return;
         }
 
+        let errorCode = "";
+        try {
+          const errorBody = (await response.json()) as { error?: string };
+          errorCode = errorBody.error ?? "";
+        } catch {
+          errorCode = "";
+        }
+
         setHandshake("error");
-        if (response.status === 403) {
+        if (
+          response.status === 403 &&
+          (errorCode === "device_not_registered" ||
+            errorCode === "device_site_mismatch")
+        ) {
           setStatus("Device not registered. Contact admin.");
+          return;
+        }
+
+        if (response.status === 429 || errorCode === "rate_limited") {
+          scheduleHandshakeRetry("Server busy. Retrying handshake...");
           return;
         }
 
@@ -252,14 +375,25 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
 
     const handleOnline = () => {
       setOnline(true);
+      setSyncMessage("Connection restored. Syncing queue...");
       syncQueue();
       runHandshake();
     };
-    const handleOffline = () => setOnline(false);
+    const handleOffline = () => {
+      setOnline(false);
+      setSyncMessage("Offline. Events will queue locally.");
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        syncQueue();
+        runHandshake();
+      }
+    };
     const handleInteraction = () => resetIdle();
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
+    document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("keydown", handleInteraction);
     window.addEventListener("mousemove", handleInteraction);
 
@@ -267,6 +401,7 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
       cancelled = true;
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
+      document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("keydown", handleInteraction);
       window.removeEventListener("mousemove", handleInteraction);
       if (idleTimer.current) {
@@ -275,8 +410,25 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
       if (handshakeTimer.current) {
         clearTimeout(handshakeTimer.current);
       }
+      if (queuePollTimer.current) {
+        clearTimeout(queuePollTimer.current);
+      }
     };
   }, [deviceId, siteId, resetIdle, syncQueue, updateQueuedCount]);
+
+  useEffect(() => {
+    if (!online) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      if (queuedCount > 0) {
+        syncQueue();
+      }
+    }, 15_000);
+
+    return () => clearInterval(interval);
+  }, [online, queuedCount, syncQueue]);
 
   useEffect(() => {
     if (inputRef.current) {
@@ -284,15 +436,22 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
     }
   }, [badgeId, success]);
 
-  const resolveEmployee = async (): Promise<{ employeeId: string; employeeName: string }> => {
-    const memoryCached = getFromMemoryCache(badgeId);
+  const resolveEmployee = async (
+    normalizedBadgeId: string,
+  ): Promise<{ employeeId: string; employeeName: string }> => {
+    const memoryCached = getFromMemoryCache(normalizedBadgeId);
     if (memoryCached) {
       return { employeeId: memoryCached.employeeId, employeeName: memoryCached.displayName };
     }
 
     try {
-      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 500));
-      const idbCached = await Promise.race([lookupEmployeeByBadge(badgeId), timeoutPromise]);
+      const timeoutPromise = new Promise<null>((resolve) =>
+        setTimeout(() => resolve(null), 1_500),
+      );
+      const idbCached = await Promise.race([
+        lookupEmployeeByBadge(normalizedBadgeId),
+        timeoutPromise,
+      ]);
       if (idbCached) {
         return { employeeId: idbCached.employeeId, employeeName: idbCached.displayName };
       }
@@ -301,13 +460,28 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
     }
 
     if (navigator.onLine) {
-      const response = await fetch("/api/kiosk/lookup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ badgeId }),
-      });
+      let response: Response;
+      try {
+        response = await withTimeout("/api/kiosk/lookup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ badgeId: normalizedBadgeId }),
+        });
+      } catch {
+        throw new Error("lookup_timeout");
+      }
+
       if (response.ok) {
         return response.json() as Promise<{ employeeId: string; employeeName: string }>;
+      }
+      if (response.status === 403) {
+        throw new Error("employee_not_active");
+      }
+      if (response.status === 404) {
+        throw new Error("employee_not_found");
+      }
+      if (response.status === 429) {
+        throw new Error("lookup_rate_limited");
       }
     }
 
@@ -318,14 +492,19 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
   };
 
   const sendPunch = async () => {
-    if (!badgeId) {
+    const normalizedBadgeId = badgeId.trim().toUpperCase();
+    if (!normalizedBadgeId) {
       setStatus("Scan or enter a badge ID to continue.");
       beep("error");
       return;
     }
+    if (submitting) {
+      return;
+    }
 
+    setSubmitting(true);
     try {
-      const { employeeId, employeeName } = await resolveEmployee();
+      const { employeeId, employeeName } = await resolveEmployee(normalizedBadgeId);
 
       const idempotencyKey = crypto.randomUUID();
       const payload: ClockEventPayload = {
@@ -343,19 +522,41 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
         await updateQueuedCount();
         setStatus(`Saved offline for ${employeeName}.`);
         setBadgeId("");
+        setSyncMessage("Offline queue updated. Will sync when connection returns.");
         return;
       }
 
-      const response = await fetch("/api/kiosk/clock", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      let response: Response;
+      try {
+        response = await withTimeout("/api/kiosk/clock", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } catch {
+        await enqueueEvent(payload, idempotencyKey);
+        await updateQueuedCount();
+        setStatus("Request timed out. Saved offline for retry.");
+        setSyncMessage("Queued due to timeout. Auto-retry enabled.");
+        beep("error");
+        return;
+      }
 
       if (!response.ok) {
+        if (response.status === 429) {
+          setStatus("Server busy. Please retry in a moment.");
+          beep("error");
+          return;
+        }
+        if (response.status === 403) {
+          setStatus("Punch rejected. Employee or device is not active.");
+          beep("error");
+          return;
+        }
         await enqueueEvent(payload, idempotencyKey);
         await updateQueuedCount();
         setStatus("Network issue. Saved offline for retry.");
+        setSyncMessage("Queued due to request failure. Auto-retry enabled.");
         beep("error");
         return;
       }
@@ -370,10 +571,21 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
       if (error instanceof Error && error.message === "employee_not_found_offline") {
         setStatus("Employee not found. Check badge ID.");
         beep("error");
+      } else if (error instanceof Error && error.message === "employee_not_active") {
+        setStatus("Employee is inactive. Contact admin.");
+        beep("error");
+      } else if (error instanceof Error && error.message === "lookup_rate_limited") {
+        setStatus("Lookup is rate limited. Please try again.");
+        beep("error");
+      } else if (error instanceof Error && error.message === "lookup_timeout") {
+        setStatus("Lookup timed out. Please retry.");
+        beep("error");
       } else {
-        setStatus("Employee not found. Check badge ID.");
+        setStatus("Unable to process punch right now. Please retry.");
         beep("error");
       }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -465,7 +677,9 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
               placeholder="Scan badge or enter ID"
               value={badgeId}
               ref={inputRef}
-              onChange={(event) => setBadgeId(event.target.value)}
+              onChange={(event) =>
+                setBadgeId(event.target.value.toUpperCase())
+              }
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
                   sendPunch();
@@ -512,6 +726,8 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
           <Button
             variant="primary"
             onClick={sendPunch}
+            loading={submitting}
+            disabled={submitting || handshake !== "ok"}
             className="h-16 w-full text-xl font-bold uppercase tracking-wider shadow-[0_0_40px_rgba(109,0,255,0.3)] hover:shadow-[0_0_60px_rgba(109,0,255,0.5)] transition-shadow"
           >
             Submit Punch
@@ -540,12 +756,14 @@ export default function KioskTerminal({ deviceId, siteId }: Props) {
               <p className="text-xs text-[var(--text-muted)]" data-testid="last-sync">
                 Last sync: {lastSync ?? "Not synced yet"}
               </p>
+              <p className="text-xs text-[var(--text-muted)]">{syncMessage}</p>
             </div>
           </div>
           <Button
             variant="secondary"
             onClick={syncQueue}
             loading={syncing}
+            disabled={syncing || !online}
             data-testid="sync-now"
             className="px-6"
           >

@@ -15,8 +15,18 @@ export const POST = async (request: Request) => {
     );
   }
 
-  const body = (await request.json()) as { badgeId?: string };
-  if (!body.badgeId) {
+  let body: { badgeId?: string } = {};
+  try {
+    const parsed = await request.json();
+    if (parsed && typeof parsed === "object") {
+      body = parsed as { badgeId?: string };
+    }
+  } catch {
+    body = {};
+  }
+
+  const badgeId = body.badgeId?.trim().toUpperCase() ?? "";
+  if (!badgeId) {
     return NextResponse.json(
       { ok: false, error: "missing_badge" },
       { status: 400 },
@@ -24,7 +34,7 @@ export const POST = async (request: Request) => {
   }
 
   const employee = await prisma.employee.findFirst({
-    where: { badgeId: body.badgeId, status: "ACTIVE" },
+    where: { badgeId, status: "ACTIVE" },
   });
 
   if (!employee) {

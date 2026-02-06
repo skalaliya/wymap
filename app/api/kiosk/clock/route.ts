@@ -20,7 +20,15 @@ export const POST = async (request: Request) => {
     );
   }
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { ok: false, error: "invalid_payload" },
+      { status: 400 },
+    );
+  }
   const parsed = clockEventSchema.safeParse(body);
 
   if (!parsed.success) {
