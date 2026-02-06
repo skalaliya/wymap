@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:stable": "next dev --webpack",
     "build": "prisma generate && next build",
     "vercel-build": "prisma generate --schema=prisma/schema.postgres.prisma && prisma migrate deploy --schema=prisma/schema.postgres.prisma && next build",
     "start": "next start",
