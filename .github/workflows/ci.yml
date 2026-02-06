@@ -59,7 +59,25 @@ jobs:
           fi
 
       - name: Generate Prisma client
-        run: pnpm prisma generate
+        shell: bash
+        run: |
+          set -euo pipefail
+          max_attempts=4
+          for attempt in $(seq 1 "$max_attempts"); do
+            echo "Prisma generate attempt ${attempt}/${max_attempts}"
+            if pnpm prisma generate; then
+              exit 0
+            fi
+
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              sleep_seconds=$((attempt * 5))
+              echo "Retrying in ${sleep_seconds}s..."
+              sleep "$sleep_seconds"
+            fi
+          done
+
+          echo "::error::pnpm prisma generate failed after ${max_attempts} attempts"
+          exit 1
 
       - name: Lint
         run: pnpm lint
