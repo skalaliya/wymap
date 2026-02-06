@@ -34,8 +34,8 @@ export default defineConfig({
       NEXTAUTH_URL: baseURL,
       AUTH_ADMIN_EMAIL: process.env.AUTH_ADMIN_EMAIL ?? "admin@wymap.local",
       AUTH_ADMIN_PASSWORD: process.env.AUTH_ADMIN_PASSWORD ?? "ChangeMe123!",
-      // Note: KIOSK_DEVICE_ID and KIOSK_SITE_ID are NOT set here
-      // This allows E2E tests to validate devices against the database
+      KIOSK_DEVICE_ID: process.env.KIOSK_DEVICE_ID ?? "device_alpha",
+      KIOSK_SITE_ID: process.env.KIOSK_SITE_ID ?? "site_hq",
     },
   },
 });
