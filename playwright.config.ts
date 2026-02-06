@@ -10,7 +10,7 @@ export default defineConfig({
   },
   fullyParallel: false,
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: 1,
   use: {
     baseURL,
     trace: "retain-on-failure",
@@ -25,7 +25,7 @@ export default defineConfig({
   webServer: {
     command: "pnpm dev:stable",
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000,
     env: {
       DATABASE_URL: process.env.DATABASE_URL ?? "file:./e2e.db",
