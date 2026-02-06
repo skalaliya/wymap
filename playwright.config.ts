@@ -23,13 +23,15 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "pnpm dev:stable",
+    command: "pnpm start",
     url: baseURL,
     reuseExistingServer: false,
     timeout: 120_000,
     env: {
       DATABASE_URL: process.env.DATABASE_URL ?? "file:./e2e.db",
       AUTH_SECRET: process.env.AUTH_SECRET ?? "e2e-secret",
+      AUTH_TRUST_HOST: "true",
+      NEXTAUTH_URL: baseURL,
       AUTH_ADMIN_EMAIL: process.env.AUTH_ADMIN_EMAIL ?? "admin@wymap.local",
       AUTH_ADMIN_PASSWORD: process.env.AUTH_ADMIN_PASSWORD ?? "ChangeMe123!",
       // Note: KIOSK_DEVICE_ID and KIOSK_SITE_ID are NOT set here

@@ -35,6 +35,8 @@ test.describe("kiosk flows", () => {
   test("offline queue stores punches and syncs when online", async ({ page, context }) => {
     // 1. Load page and wait for deterministic readiness
     await page.goto("/kiosk");
+    await expect(page).toHaveURL(/\/kiosk$/);
+    await expect(page.getByLabel("Badge ID")).toBeVisible({ timeout: 20000 });
     await expect(page.getByTestId("handshake-status")).toContainText(
       "Handshake OK",
       { timeout: 15000 },
@@ -43,6 +45,7 @@ test.describe("kiosk flows", () => {
 
     // 2. Go offline
     await context.setOffline(true);
+    await expect(page).toHaveURL(/\/kiosk$/);
     await expect(page.getByTestId("online-status")).toHaveText("Offline");
 
     // 3. Submit punch (should work immediately due to in-memory cache)
@@ -58,6 +61,7 @@ test.describe("kiosk flows", () => {
     // 5. Go online and sync
     await context.setOffline(false);
     await expect(page.getByTestId("online-status")).toHaveText("Online");
+    await expect(page.getByTestId("sync-now")).toBeEnabled({ timeout: 10000 });
     await page.getByTestId("sync-now").click();
     await expect(page.getByTestId("queue-count")).toContainText("0", { timeout: 10000 });
   });
