@@ -10,7 +10,7 @@ export const Select = ({ className, label, children, ...props }: SelectProps) =>
     {label ? <span className="text-xs uppercase tracking-[0.3em]">{label}</span> : null}
     <select
       className={cn(
-        "rounded-lg border border-[var(--surface-border)] bg-transparent px-3 py-2 text-base text-[var(--foreground)] focus:border-[var(--purple-1)] focus:outline-none",
+        "rounded-lg border border-[var(--surface-border)] bg-transparent px-3 py-2 text-base text-[var(--foreground)] focus:border-[var(--purple-1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet-1)]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)]",
         className,
       )}
       {...props}

@@ -10,7 +10,10 @@ Built with **Next.js 16**, **Prisma**, **SQLite** (dev) / **PostgreSQL** (prod),
 
 - [What Does This App Do?](#-what-does-this-app-do)
 - [Quick Start (Local)](#-quick-start-local)
+- [Local vs Vercel Setup](#-local-vs-vercel-setup)
 - [Where Is the Data Stored?](#-where-is-the-data-stored)
+- [Prisma Schema Strategy](#-prisma-schema-strategy)
+- [Vercel + Neon Environment Variables](#-vercel--neon-environment-variables)
 - [Demo Credentials & Sample Data](#-demo-credentials--sample-data)
 - [How to Test It](#-how-to-test-it)
 - [Troubleshooting](#-troubleshooting)
@@ -91,6 +94,24 @@ Then open:
 
 ---
 
+## 🌐 Local vs Vercel Setup
+
+### Local (SQLite)
+
+- Uses `prisma/schema.prisma` with SQLite (`prisma/dev.db`).
+- Preferred scripts:
+  - `pnpm prisma generate`
+  - `pnpm prisma migrate reset --force`
+  - `pnpm prisma db seed`
+
+### Vercel (Production / Preview)
+
+- Uses `prisma/schema.postgres.prisma` and Neon Postgres.
+- Vercel build runs `pnpm vercel-build` (generates Postgres client, pushes schema, seeds if empty, builds Next.js).
+- **Do not** commit `.env.local` or `.vercel` outputs pulled by the CLI.
+
+---
+
 ## 💾 Where Is the Data Stored?
 
 ### Server-side (Prisma + SQLite)
@@ -117,6 +138,34 @@ When the kiosk is offline, punches are queued in the browser's **IndexedDB**.
 3. Look for the `wymap-offline` database
 
 The queue syncs automatically when the device comes back online, or you can click **Sync Now**.
+
+---
+
+## 🧬 Prisma Schema Strategy
+
+- `prisma/schema.prisma` → SQLite (local dev + tests).
+- `prisma/schema.postgres.prisma` → Postgres (Vercel / production).
+- Use:
+  - `pnpm prisma:migrate:sqlite` for local migrations.
+  - `pnpm prisma:migrate:postgres` for Postgres migrations.
+  - `pnpm vercel-build` for Vercel deploys (db push + seed-if-empty).
+
+---
+
+## 🔐 Vercel + Neon Environment Variables
+
+Required for production-like environments:
+
+- `DATABASE_URL`
+- `AUTH_SECRET`
+
+Recommended:
+
+- `DATABASE_URL_UNPOOLED` (Neon pooling)
+- `AUTH_ADMIN_EMAIL`
+- `AUTH_ADMIN_PASSWORD`
+- `KIOSK_SITE_ID`
+- `KIOSK_DEVICE_ID`
 
 ---
 
@@ -241,6 +290,18 @@ Or run on a different port:
 ```bash
 pnpm dev --port 3001
 ```
+
+### Turbopack panic / cache corruption
+
+**Fix:** Clear build caches, then restart:
+```bash
+rm -rf .next node_modules/.cache
+pnpm dev
+```
+
+### Playwright e2e server mode
+
+**Note:** `pnpm test:e2e` runs `pnpm start` (production server) for stability. If dev mode flakes, prefer `pnpm dev:stable` for manual testing.
 
 ### Hydration mismatch errors
 

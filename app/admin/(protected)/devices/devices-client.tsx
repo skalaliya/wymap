@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { Pagination } from "@/components/ui/Pagination";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { Table, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/ui/Table";
+import { Table, TableCell, TableContainer, TableHead, TableHeaderCell, TableRow } from "@/components/ui/Table";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -161,7 +161,7 @@ export default function DevicesClient({ sites, canEdit }: { sites: Site[]; canEd
       ) : items.length === 0 ? (
         <p className="text-sm text-[var(--text-muted)]">No devices found.</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-[var(--surface-border)]">
+        <TableContainer>
           <Table className="min-w-[760px]">
             <TableHead>
               <TableRow>
@@ -200,7 +200,7 @@ export default function DevicesClient({ sites, canEdit }: { sites: Site[]; canEd
               ))}
             </tbody>
           </Table>
-        </div>
+        </TableContainer>
       )}
       <Pagination
         page={data?.page ?? page}

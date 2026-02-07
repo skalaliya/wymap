@@ -22,17 +22,33 @@ type DashboardData = {
   offlineDevices: OfflineDevice[];
 };
 
+type HealthData = {
+  ok: boolean;
+  db: { ok: boolean };
+  env: Record<string, boolean>;
+  version: string;
+  gitCommit: string | null;
+};
+
 export default function DashboardClient() {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [health, setHealth] = useState<HealthData | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    const response = await fetch("/api/admin/dashboard");
-    if (response.ok) {
-      const json = (await response.json()) as DashboardData;
+    const [dashboardResponse, healthResponse] = await Promise.all([
+      fetch("/api/admin/dashboard"),
+      fetch("/api/health"),
+    ]);
+    if (dashboardResponse.ok) {
+      const json = (await dashboardResponse.json()) as DashboardData;
       setData(json);
-      setLoading(false);
     }
+    if (healthResponse.ok) {
+      const json = (await healthResponse.json()) as HealthData;
+      setHealth(json);
+    }
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -50,6 +66,9 @@ export default function DashboardClient() {
       </div>
     );
   }
+
+  const configuredCount = health ? Object.values(health.env).filter(Boolean).length : 0;
+  const totalEnvCount = health ? Object.keys(health.env).length : 0;
 
   return (
     <div className="space-y-6">
@@ -89,35 +108,61 @@ export default function DashboardClient() {
         </Card>
       </div>
 
-      <Card className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Offline devices</h2>
-          <Badge variant={data.offlineDevices.length ? "warning" : "success"}>
-            {data.offlineDevices.length ? "Needs attention" : "Healthy"}
-          </Badge>
-        </div>
-        {data.offlineDevices.length === 0 ? (
-          <p className="text-sm text-[var(--text-muted)]">
-            All devices reporting within the last 10 minutes.
-          </p>
-        ) : (
-          <div className="space-y-2 text-sm">
-            {data.offlineDevices.map((device) => (
-              <div
-                key={device.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--surface-border)]/70 px-3 py-2"
-              >
-                <span className="min-w-0 truncate">
-                  {device.name} • {device.site}
-                </span>
-                <span className="text-[var(--text-muted)]">
-                  Last seen: {device.lastSeenAt ?? "Never"}
-                </span>
-              </div>
-            ))}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Offline devices</h2>
+            <Badge variant={data.offlineDevices.length ? "warning" : "success"}>
+              {data.offlineDevices.length ? "Needs attention" : "Healthy"}
+            </Badge>
           </div>
-        )}
-      </Card>
+          {data.offlineDevices.length === 0 ? (
+            <p className="text-sm text-[var(--text-muted)]">
+              All devices reporting within the last 10 minutes.
+            </p>
+          ) : (
+            <div className="space-y-2 text-sm">
+              {data.offlineDevices.map((device) => (
+                <div
+                  key={device.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--surface-border)]/70 px-3 py-2"
+                >
+                  <span className="min-w-0 truncate">
+                    {device.name} • {device.site}
+                  </span>
+                  <span className="text-[var(--text-muted)]">
+                    Last seen: {device.lastSeenAt ?? "Never"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+        <Card className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">System status</h2>
+            <Badge variant={health?.ok ? "success" : "warning"}>
+              {health?.ok ? "Operational" : "Check config"}
+            </Badge>
+          </div>
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-[var(--text-muted)]">Database</span>
+              <span>{health?.db.ok ? "Connected" : "Unavailable"}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[var(--text-muted)]">Config</span>
+              <span>
+                {health ? `${configuredCount} / ${totalEnvCount} set` : "Checking..."}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[var(--text-muted)]">Version</span>
+              <span className="truncate">{health?.version ?? "Unknown"}</span>
+            </div>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

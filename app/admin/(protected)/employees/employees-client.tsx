@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { Pagination } from "@/components/ui/Pagination";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { Table, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/ui/Table";
+import { Table, TableCell, TableContainer, TableHead, TableHeaderCell, TableRow } from "@/components/ui/Table";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -205,9 +205,9 @@ export default function EmployeesClient({ canEdit }: { canEdit: boolean }) {
         ) : sortedItems.length === 0 ? (
           <p className="text-sm text-[var(--text-muted)]">No employees found.</p>
         ) : (
-        <div
+        <TableContainer
           className={cn(
-            "overflow-x-auto rounded-xl border border-[var(--surface-border)] transition-opacity duration-200",
+            "transition-opacity duration-200",
             isRefreshing && "pointer-events-none opacity-50",
           )}
         >
@@ -258,7 +258,7 @@ export default function EmployeesClient({ canEdit }: { canEdit: boolean }) {
                 ))}
               </tbody>
             </Table>
-          </div>
+        </TableContainer>
         )}
         <Pagination
           page={data?.page ?? page}

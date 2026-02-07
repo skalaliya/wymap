@@ -1,6 +1,19 @@
 import type { HTMLAttributes, TableHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
+export const TableContainer = ({
+  className,
+  ...props
+}: HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn(
+      "overflow-x-auto rounded-xl border border-[var(--surface-border)] bg-[rgba(8,6,18,0.6)]",
+      className,
+    )}
+    {...props}
+  />
+);
+
 export const Table = ({
   className,
   ...props

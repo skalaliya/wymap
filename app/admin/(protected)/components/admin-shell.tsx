@@ -63,9 +63,10 @@ export default function AdminShell({ userName, children }: AdminShellProps) {
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-50 w-72 max-w-[82vw] transform border-r border-[var(--surface-border)] bg-[rgba(6,4,15,0.97)] shadow-2xl transition-transform lg:hidden",
-          mobileOpen ? "translate-x-0" : "-translate-x-full",
+          mobileOpen ? "translate-x-0" : "-translate-x-full pointer-events-none",
         )}
         aria-label="Admin navigation drawer"
+        aria-hidden={!mobileOpen}
       >
         <div className="flex items-center justify-end px-5 py-3">
           <button

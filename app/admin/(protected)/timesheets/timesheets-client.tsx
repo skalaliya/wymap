@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Pagination } from "@/components/ui/Pagination";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { Table, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/ui/Table";
+import { Table, TableCell, TableContainer, TableHead, TableHeaderCell, TableRow } from "@/components/ui/Table";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -127,7 +127,7 @@ export default function TimesheetsClient() {
       ) : rows.length === 0 ? (
         <p className="text-sm text-[var(--text-muted)]">No timesheet data for this date.</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-[var(--surface-border)]">
+        <TableContainer>
           <Table className="min-w-[900px]">
             <TableHead>
               <TableRow>
@@ -194,7 +194,7 @@ export default function TimesheetsClient() {
               })}
             </tbody>
           </Table>
-        </div>
+        </TableContainer>
       )}
       <Pagination
         page={data?.page ?? page}

@@ -4,7 +4,9 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
 
-if (!env.AUTH_SECRET) {
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+
+if (!env.AUTH_SECRET && !isBuildPhase) {
   throw new Error(
     "Invalid environment configuration: AUTH_SECRET is required for auth routes",
   );

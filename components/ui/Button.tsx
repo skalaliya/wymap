@@ -27,7 +27,7 @@ export const Button = ({
 }: ButtonProps) => (
   <button
     className={cn(
-      "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold uppercase tracking-[0.15em] transition disabled:cursor-not-allowed disabled:opacity-60",
+      "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold uppercase tracking-[0.15em] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet-1)]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] disabled:cursor-not-allowed disabled:opacity-60",
       variantClasses[variant],
       className,
     )}
