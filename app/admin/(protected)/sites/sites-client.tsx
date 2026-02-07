@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { Pagination } from "@/components/ui/Pagination";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { Table, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/ui/Table";
+import { Table, TableCell, TableContainer, TableHead, TableHeaderCell, TableRow } from "@/components/ui/Table";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { useToast } from "@/components/ui/ToastProvider";
 import { updateTableParams, getPage, getPageSize } from "@/lib/admin-table";
@@ -148,8 +148,8 @@ export default function SitesClient({ canEdit }: { canEdit: boolean }) {
       ) : items.length === 0 ? (
         <p className="text-sm text-[var(--text-muted)]">No sites found.</p>
       ) : (
-        <div className="overflow-auto">
-          <Table>
+        <TableContainer>
+          <Table className="min-w-[640px]">
             <TableHead>
               <TableRow>
                 <TableHeaderCell>Site</TableHeaderCell>
@@ -170,7 +170,11 @@ export default function SitesClient({ canEdit }: { canEdit: boolean }) {
                   </TableCell>
                   <TableCell>
                     {canEdit ? (
-                      <Button variant="secondary" onClick={() => setConfirmId(site.id)}>
+                      <Button
+                        variant="secondary"
+                        onClick={() => setConfirmId(site.id)}
+                        className="w-full sm:w-auto"
+                      >
                         {site.active ? "Deactivate" : "Activate"}
                       </Button>
                     ) : (
@@ -181,7 +185,7 @@ export default function SitesClient({ canEdit }: { canEdit: boolean }) {
               ))}
             </tbody>
           </Table>
-        </div>
+        </TableContainer>
       )}
       <Pagination
         page={data?.page ?? page}

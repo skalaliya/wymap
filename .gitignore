@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+package-lock.json
 /.pnp
 .pnp.*
 .yarn/*
@@ -45,6 +46,9 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# evidence
+/artifacts
 
 # typescript
 *.tsbuildinfo

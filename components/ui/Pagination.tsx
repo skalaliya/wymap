@@ -25,7 +25,7 @@ export const Pagination = ({
   const canNext = page < totalPages;
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
         {label ?? `Page ${page} of ${totalPages}`}
       </div>
@@ -47,6 +47,7 @@ export const Pagination = ({
           variant="secondary"
           onClick={() => onPageChange(page - 1)}
           disabled={!canPrev}
+          className="min-h-11"
         >
           Prev
         </Button>
@@ -54,6 +55,7 @@ export const Pagination = ({
           variant="secondary"
           onClick={() => onPageChange(page + 1)}
           disabled={!canNext}
+          className="min-h-11"
         >
           Next
         </Button>

@@ -1,11 +1,24 @@
 import type { HTMLAttributes, TableHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
+export const TableContainer = ({
+  className,
+  ...props
+}: HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn(
+      "overflow-x-auto rounded-xl border border-[var(--surface-border)] bg-[rgba(8,6,18,0.6)]",
+      className,
+    )}
+    {...props}
+  />
+);
+
 export const Table = ({
   className,
   ...props
 }: TableHTMLAttributes<HTMLTableElement>) => (
-  <table className={cn("w-full text-sm", className)} {...props} />
+  <table className={cn("w-full min-w-full text-sm", className)} {...props} />
 );
 
 export const TableHead = ({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) => (
@@ -23,7 +36,7 @@ export const TableRow = ({ className, ...props }: HTMLAttributes<HTMLTableRowEle
 );
 
 export const TableCell = ({ className, ...props }: HTMLAttributes<HTMLTableCellElement>) => (
-  <td className={cn("px-3 py-2", className)} {...props} />
+  <td className={cn("px-3 py-2 align-top", className)} {...props} />
 );
 
 export const TableHeaderCell = ({ className, ...props }: HTMLAttributes<HTMLTableCellElement>) => (
