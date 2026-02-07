@@ -28,6 +28,7 @@ type HealthData = {
   env: Record<string, boolean>;
   version: string;
   gitCommit: string | null;
+  time?: string;
 };
 
 export default function DashboardClient() {
@@ -69,6 +70,9 @@ export default function DashboardClient() {
 
   const configuredCount = health ? Object.values(health.env).filter(Boolean).length : 0;
   const totalEnvCount = health ? Object.keys(health.env).length : 0;
+  const healthCheckedAt = health?.time
+    ? new Date(health.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : "Unknown";
 
   return (
     <div className="space-y-6">
@@ -159,6 +163,10 @@ export default function DashboardClient() {
             <div className="flex items-center justify-between">
               <span className="text-[var(--text-muted)]">Version</span>
               <span className="truncate">{health?.version ?? "Unknown"}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[var(--text-muted)]">Last check</span>
+              <span>{healthCheckedAt}</span>
             </div>
           </div>
         </Card>
